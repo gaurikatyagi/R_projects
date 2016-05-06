@@ -1,0 +1,1107 @@
+---
+title: "FNDSS_Gaurika_Tyagi"
+author: "Gaurika Tyagi"
+date: "1 May 2016"
+output: html_document
+---
+
+Analyze and visualize data in the FNDDS 2011-2012 Foods database.This project first clubs data from various tables and categorizes them into the desired nutrients. An extra column for cfood category is then added to get the final data. This data frame is used to remove unwanted nutrients and then exploratory analysis is performed on the data. SQL is used to subset the dataset and anlyze it at various stages. GGplots are generated to visualize the various features which help us understand the necesary nutrients to be used to fit SVM and Logistic Regression Models.
+
+```{r}
+#install.packages("tidyr")
+
+setwd("C:/Users/Dr. Tyagi/Documents/MSHI/HS616- R with stats/Week13/dataAnalViz")
+
+data_dir <- "FNDDS_2011"
+
+fortification <- c(`0`="none", `1`="fortified_product", `2`="contains fortified ingredients")
+
+fndds_tables <- list(
+	AddFoodDesc = list(
+			title="Additional Food Descriptions",
+			column_types=c(
+				food_code="integer", # foreign key
+				seq_num="integer", 
+				start_date="date", 
+				end_date="date", 
+				additional_food_description="text"),
+			sep="^"
+		),
+	FNDDSNutVal = list(
+			title="FNDDS Nutrient Values",
+			column_types=c(
+				food_code="integer",
+				nutrient_code="integer",	# Nutrient Descriptions table
+				start_date="date", 
+				end_date="date", 
+				nutrient_value="double"
+				),
+			sep="^"
+		),
+	FNDDSSRLinks = list(
+			title="FNDDS-SR Links",	# see p34 of fndds_2011_2012_doc.pdf
+			column_types=c(
+				food_code="integer",
+				start_date="date", 
+				end_date="date", 
+				seq_num="integer",
+				sr_code="integer",
+				sr_descripton="text",
+				amount="double",
+				measure="char[3]",	# lb, oz, g, mg, cup, Tsp, qt, fluid ounce, etc
+				portion_code="integer",
+				retention_code="integer",
+				flag="integer",
+				weight="double",
+				change_type_to_sr_code="char[1]",	# D=data change; F=food change
+				change_type_to_weight="char[1]",
+				change_type_to_retn_code="char[1]"
+				),
+			sep="^"
+		),
+	FoodPortionDesc = list(
+			title="Food Portion Descriptions",
+			column_types=c(
+				portion_code="integer", 	# foreign key
+				start_date="date",
+				end_date="date",
+				portion_description="text",
+				change_type="char[1]"
+			),
+			sep="^"
+		),
+	FoodSubcodeLinks = list(
+			title="Food code-subcode links",
+			column_types=c(
+				food_code="integer",
+				subcode="integer",
+				start_date="date",
+				end_date="date"
+				),
+			sep="^"
+		),
+	FoodWeights = list(
+			title="Food Weights",
+			column_types=c(
+				food_code="integer",	# foreign key
+				subcode="integer",
+				seq_num="integer",
+				portion_code="integer",	# food portion description id
+				start_date="date",
+				end_date="date",
+				portion_weight="double",	# missing values = -9
+				change_type="char[1]"	# D=data change, F=food change
+				),
+			sep="^"
+		),
+	MainFoodDesc = list(
+			title="Main Food Descriptions",
+			column_types=c(
+				food_code="integer", 
+				start_date="date", 
+				end_date="date", 
+				main_food_description="character", 
+				fortification_id="integer"),
+			sep="^"
+		),
+	ModDesc = list(
+			title="Modifications Descriptons",
+			column_types=c(
+				modification_code="integer",
+				start_date="date", 
+				end_date="date", 
+				modification_description="text",
+				food_code="integer"
+				
+				),
+			sep="^"
+		),
+	ModNutVal = list(
+			title="Modifications Nutrient Values",
+			column_types=c(
+				modification_code="integer",
+				nutrient_code="integer",
+				start_date="date", 
+				end_date="date", 
+				nutrient_value="double"
+				),
+			sep="^"
+		),
+	MoistNFatAdjust = list(
+			title="Moisture & Fat Adjustments",	# to account for changes during cooking
+			column_types=c(
+				food_code="integer",
+				start_date="date", 
+				end_date="date", 
+				moisture_change="double",
+				fat_change="double",
+				type_of_fat="integer"	# SR code or food code				
+				),
+			sep="^"
+		),
+	NutDesc = list(
+			title="Nutrient Descriptions",
+			column_types=c(
+				nutrient_code="integer",
+				nutrient_description="text",
+				tagname="text",
+				unit="text",
+				decimals="integer"	# decimal places
+				),
+			sep="^"
+		),
+	SubcodeDesc = list(
+			title="Subcode Descriptions",
+			column_types=c(
+				subcode="integer",	# key; 0=use default gram weights
+				start_date="date",
+				end_date="date",
+				subcode_description="text"
+				),
+			sep="^"
+		)
+)
+
+# flat file to a data frame: called by fndds2sqlite for each table
+assign_data_frame <- function(tbl_name){
+	tbl <- read.table(
+		file.path(data_dir, paste0(tbl_name, ".txt")), 
+		sep="^",
+		quote="~",
+		stringsAsFactors=FALSE)
+	# drop last (empty) column
+	tbl <- tbl[1:(length(tbl)-1)]
+	# gets names of columns from tbl_name element of fndds_tables list of list
+	names(tbl) <- names(fndds_tables[[tbl_name]][["column_types"]])
+	# assigns the data frame tbl to global variable named by string contents of tbl_name
+	assign(tbl_name, tbl, envir = .GlobalEnv) 
+}
+
+# flat file to database
+fndds2sqlite <- function(data_dir, table_details, sqlite_filename){
+
+	library("RSQLite")
+  #open database named by sqlite_filename, create empty if doesn't exist
+	con <- dbConnect(SQLite(), sqlite_filename)
+
+	for (tbl_name in names(table_details)){
+		file_name <- paste0(tbl_name, ".txt") # paste0 has empty string as separator
+		assign_data_frame(tbl_name)
+		print(file_name)
+		tbl <- get(tbl_name)
+		print(tbl_name)
+		# function exits with error message next line if database already exists
+		dbWriteTable(con, tbl_name, tbl, row.names = FALSE)
+	}
+	
+	dbDisconnect(con)# seems to auto save the updated database
+}
+
+#First time run creates the database from flat files and saves to database file
+# first run also creates dataframes for each table
+#If you run whwn database already exists you get:
+# Error: Table AddFoodDesc exists in database, and both overwrite and append are FALSE 
+# and you get only one data frame, but can go on, no harm done
+
+fndds2sqlite("FNDDS_2011", fndds_tables, "fndds.sqlite")
+
+library(DBI)
+# Creates 3 of the data frames (useful if database already exists so data frames not created)
+for (tbl in c("FNDDSNutVal", "MainFoodDesc", "NutDesc"))
+	assign_data_frame(tbl)
+
+library(dplyr)
+library(tidyr)
+
+# Make a simplified selection of foods, store in data frame.
+# TO DO: have MainFoodDesc be a tbl sourced from SQLite.
+get_selected_foods <- function(){
+	# Pull out all "Not Further Specified" foods as a wide selection of reasonably generic items.
+  # NB: grepl returns boolean for each string in vector: TRUE if a string contains the pattern, otherwise FALSE
+	generics <- MainFoodDesc %>% 
+		filter( grepl(", NFS", main_food_description )) %>%
+		filter(!grepl("infant formula", main_food_description, ignore.case = TRUE ) )
+
+	# Raw fruits
+	# Berries are covered by "Berries, raw, NFS" and "Berries, frozen, NFS"
+	# NB: grepl can search for pattern specified by regular expressions: http://www.rexegg.com/regex-quickstart.html
+	# NB: with regular expressions '^' matches empty string at beginning of line
+	#  food codes for fruits begin with 6
+	fruits <- MainFoodDesc %>% 
+		filter( grepl("^6", food_code) ) %>%
+		filter( grepl("^([^,\\(]+), raw$", main_food_description) ) %>% 
+		filter( !grepl("berries", main_food_description) )
+
+	# Raw vegetables
+	# Potatoes are covered by "White potato, NFS", "Sweet potato, NFS", etc.
+	# NB: food codes for vegetables begin with 7
+	vegetables <- MainFoodDesc %>% 
+		filter( grepl("^7", food_code) ) %>%  
+		filter(!grepl("potato", main_food_description)) %>%
+		filter( grepl(", raw$", main_food_description))
+
+	# 4="legumes, nuts, and seeds"
+	# NB: food codes for legumes, nuts, and seeds begin with 4
+	nuts_and_seeds <- MainFoodDesc %>% 
+		filter( grepl("^4", food_code) ) %>%
+		mutate( firstWord = strsplit(main_food_description, " ")[[1]][1] )
+	
+	# Selected alcoholic beverages
+	# All alcoholic beverages: grepl("^93", food_code))
+	# "Cocktail, NFS" already gives us "Cocktail"
+	# NB: food codes for alcoholic beverages begin with 93
+	alcoholic_beverages <- MainFoodDesc %>% 
+		filter( main_food_description %in% c("Beer", "Wine, table, red", "Wine, table, white", 
+			"Whiskey", "Gin", "Rum", "Vodka") )
+
+	# Collect them all into one table
+	rbind(generics, fruits, vegetables, alcoholic_beverages) %>%
+		select( food_code, main_food_description, fortification_id )  %>% 
+		filter( nchar(main_food_description) < 20 ) %>%
+	  # gsub(pattern, replacement, string_for_Pattern_matching)
+	  # replace pattern with empty string (remove pattern)
+		mutate( main_food_description = gsub("(, NFS|, raw)", "", main_food_description) ) 
+
+}
+
+foods <- get_selected_foods()	# 163 items
+#Original description table
+library(sqldf)
+long_food_nutrients <- sqldf("SELECT f.main_food_description, nd.nutrient_description, nv.nutrient_value 
+	FROM foods f 
+	INNER JOIN FNDDSNutVal nv ON f.food_code = nv.food_code 
+	INNER JOIN NutDesc nd ON nv.nutrient_code = nd.nutrient_code") 
+
+# tidyr spread: Spread a key-value pair across multiple columns.
+# spread(data, key, value, fill = NA, convert = FALSE, drop = TRUE)
+# data is a data frame.
+# key is name of the column whose values will be used as column headings.
+# value is name of the column whose values will populate the cells.
+# fill If set, missing values will be replaced with this value.
+# http://www.rdocumentation.org/packages/tidyr/functions/spread
+nutrient_food_df <- spread(long_food_nutrients, main_food_description, nutrient_value, fill=0)
+
+#remove 1st column, convert to matrix, transpose
+food_nutrient_mat <- t(as.matrix(nutrient_food_df[-1])) 
+colnames(food_nutrient_mat) <- nutrient_food_df$nutrient_description
+
+save(food_nutrient_mat, file="food_nutrient_mat.Rdata")
+# saveRDS is like save, but with saveRDS, the saved object can be loaded into a named object
+#   within R that is different from the name it had when originally serialized.
+saveRDS(foods, file="foods.rds")
+
+#*****************************************************************************#
+
+```
+
+We will baically use 3 tables from the main database:
+1. "FNDDSNutVal"
+2. "MainFoodDesc"
+3. "NutDesc"
+
+Using these tables we will perfrom joins and put conditions to obtain the required columns for analysis.
+
+We also modify the above code to obtain the food_code i our data frame. Food code will be used to categorize various foods in different categories.
+
+```{r}
+long_foodcode_nutrients <- sqldf("SELECT f.food_code, nd.nutrient_description, nv.nutrient_value 
+                             FROM foods f 
+                             INNER JOIN FNDDSNutVal nv ON f.food_code = nv.food_code 
+                             INNER JOIN NutDesc nd ON nv.nutrient_code = nd.nutrient_code") 
+
+# tidyr spread: Spread a key-value pair across multiple columns.
+# spread(data, key, value, fill = NA, convert = FALSE, drop = TRUE)
+# data is a data frame.
+# key is name of the column whose values will be used as column headings.
+# value is name of the column whose values will populate the cells.
+# fill If set, missing values will be replaced with this value.
+# http://www.rdocumentation.org/packages/tidyr/functions/spread
+nutrient_foodcode_df <- spread(long_foodcode_nutrients, food_code, nutrient_value, fill=0)
+
+#remove 1st column, convert to matrix, transpose
+foodcode_nutrient_mat <- t(as.matrix(nutrient_foodcode_df[-1])) 
+colnames(foodcode_nutrient_mat) <- nutrient_foodcode_df$nutrient_description
+save(foodcode_nutrient_mat, file="foodcode_nutrient_mat.Rdata")
+```
+
+Now that we have the required matrix called __foodcode_nutrient_mat__, we will transform it to a dataframe and add a column called <h7>category</h7> to store the 11 categories of foods based on the food codes available in the documentation at: http://www.ars.usda.gov/SP2UserFiles/Place/80400530/pdf/fndds/fndds_2011_2012_doc.pdf
+
+```{r}
+
+fcode_nut_catg<- as.data.frame(foodcode_nutrient_mat, row.names = nutrient_foodcode_df[1])
+fcode_nut_catg$food_code <- rownames(foodcode_nutrient_mat)
+fcode_nut_catg$food_code <- as.numeric(fcode_nut_catg$food_code)
+fcode_nut_catg$category <- ifelse(fcode_nut_catg$food_code>= 10000000 & fcode_nut_catg$food_code<= 19999999, "dairy", 
+                       ifelse(fcode_nut_catg$food_code>= 20000000 & fcode_nut_catg$food_code<= 29999999,"meat,fish",
+                        ifelse(fcode_nut_catg$food_code>= 30000000 & fcode_nut_catg$food_code<= 39999999,"eggs",
+                         ifelse(fcode_nut_catg$food_code>= 40000000 & fcode_nut_catg$food_code<= 49999999,"legumes,nuts,seeds",
+                          ifelse(fcode_nut_catg$food_code>= 50000000 & fcode_nut_catg$food_code<= 59999999, "grains",
+                           ifelse(fcode_nut_catg$food_code>= 60000000 & fcode_nut_catg$food_code<= 69999999, "fruits",
+                            ifelse(fcode_nut_catg$food_code>= 70000000 & fcode_nut_catg$food_code<= 79999999, "vegetables",
+                             ifelse(fcode_nut_catg$food_code>= 80000000 & fcode_nut_catg$food_code<= 89999999, "fats",
+                              ifelse(fcode_nut_catg$food_code>= 90000000 & fcode_nut_catg$food_code<= 92999999, "sugars",
+                               ifelse(fcode_nut_catg$food_code>= 93000000 & fcode_nut_catg$food_code<= 93999999, "alcohol",
+                                ifelse(fcode_nut_catg$food_code>= 94000000 & fcode_nut_catg$food_code<= 99999999, "protein powder", 
+                                       NA)))))))))))
+```
+
+Further, this dataset has a lot of unwanted nutrients which do not have a clear identification. As can be seen below:
+
+```{r}
+print(head(fcode_nut_catg))
+```
+
+We want to get rid of these nutrient and lighten our data frame.
+
+```{r}
+#removing first 19 unlabeled nutrients
+fcode_nut_catg <- fcode_nut_catg[-c(1:19)]
+```
+
+fcode_nut_catg is now a comparitively cleaner version of our earlier table. Here are the first few rows of the data frame to give a little understanding:
+
+```{r}
+print(head(fcode_nut_catg))
+```
+
+
+<h2> Part-1 of Exploratory Analysis </h2>
+
+In such a great spread of nutrient values, any value below 1 will be considered too small and is being removed ONLY for initial, broad understanding of the data
+
+```{r}
+res1 <- sqldf("SELECT mfd.main_food_description, nd.nutrient_description, 
+                  min(nv.nutrient_value) min_value, median(nv.nutrient_value) median_value, 
+                  max(nv.nutrient_value) max_value
+               FROM MainFoodDesc mfd 
+                   INNER JOIN FNDDSNutVal nv ON mfd.food_code = nv.food_code 
+                   INNER JOIN NutDesc nd ON nv.nutrient_code = nd.nutrient_code
+               GROUP BY nd.nutrient_description
+               HAVING median_value>= 1.0
+              ") 
+print(head(res1))
+```
+
+We can see that Energy, Phosphorus, Potassium and Sodium are present in high quantities in the foods contained in our datasets, Let us visualize this further:
+
+```{r}
+library(ggplot2)
+g <- ggplot(data = res1)
+g+ geom_jitter(aes(x = nutrient_description, y = median_value, 
+                   color = nutrient_description)) + 
+  theme(legend.position="bottom", legend.direction="horizontal", 
+        axis.text.x = element_text(angle = 45, hjust=1)) +
+  ggtitle("Median Nutrient value offered in Food") + labs(x = "Nutrient", 
+        y = "Nutrient Value")
+```
+
+Now, let us analyze what foods Energy, Phosphorus, Potassium and Sodium are present in:
+
+```{r}
+#Food items with Energy as non-zero
+res1energy <- sqldf("SELECT mfd.main_food_description, nd.nutrient_description, 
+                  nv.nutrient_value, mfd.fortification_id, nd.unit
+              FROM MainFoodDesc mfd 
+              INNER JOIN FNDDSNutVal nv ON mfd.food_code = nv.food_code 
+              INNER JOIN NutDesc nd ON nv.nutrient_code = nd.nutrient_code
+              WHERE nd.nutrient_description = 'Energy'
+              ")
+print("Food items with Energy")
+print(head(res1energy))
+
+#Food items with Phosphorus as non-zero
+res1phosphorus <- sqldf("SELECT mfd.main_food_description, nd.nutrient_description, 
+                  nv.nutrient_value, mfd.fortification_id, nd.unit
+                    FROM MainFoodDesc mfd 
+                    INNER JOIN FNDDSNutVal nv ON mfd.food_code = nv.food_code 
+                    INNER JOIN NutDesc nd ON nv.nutrient_code = nd.nutrient_code
+                    WHERE nd.nutrient_description = 'Phosphorus'
+                    ")
+print("Food items with Phosphorus")
+print(head(res1phosphorus))
+
+#Food items with Potassium as non-zero
+res1potassium <- sqldf("SELECT mfd.main_food_description, nd.nutrient_description, 
+                  nv.nutrient_value, mfd.fortification_id, nd.unit
+                        FROM MainFoodDesc mfd 
+                        INNER JOIN FNDDSNutVal nv ON mfd.food_code = nv.food_code 
+                        INNER JOIN NutDesc nd ON nv.nutrient_code = nd.nutrient_code
+                        WHERE nd.nutrient_description = 'Potassium'
+                        ")
+print("Food items with Potassium")
+print(head(res1potassium))
+
+#Food items with Potassium as non-zero
+res1sodium <- sqldf("SELECT mfd.main_food_description, nd.nutrient_description, 
+                  nv.nutrient_value, mfd.fortification_id, nd.unit
+                       FROM MainFoodDesc mfd 
+                       INNER JOIN FNDDSNutVal nv ON mfd.food_code = nv.food_code 
+                       INNER JOIN NutDesc nd ON nv.nutrient_code = nd.nutrient_code
+                       WHERE nd.nutrient_description = 'Sodium'
+                       ")
+print("Food items with Potassium")
+print(head(res1potassium))
+```
+
+Now, we will plot the distribution of these nutrients and analyze them together. Please note that while Energy is measured in kcal, Phosphorus, Potassium and Sodium are measured in mg. We will set the same scale for these and not for energy:
+
+```{r}
+par(mfrow= c(2,2))
+hist(res1energy$nutrient_value, probability = TRUE, 
+     xlab = "Nutrient values in Energy", ylab = "Density of Energy", xlim = c(0,1000),
+     main = "Density distribution of Energy in all foods")
+
+hist(res1phosphorus$nutrient_value, probability = TRUE, 
+     xlab = "Nutrient values in Phosphorus", ylab = "Density of Phosphorus", xlim = c(0,1000),
+     main = "Density distribution of Phosphorus in all foods")
+
+hist(res1potassium$nutrient_value, probability = TRUE, 
+     xlab = "Nutrient values in Potassium", ylab = "Density of Potassium", xlim = c(0,1000),
+     main = "Density distribution of Potassium in all foods")
+
+hist(res1sodium$nutrient_value, probability = TRUE, 
+     xlab = "Nutrient values in Sodium", ylab = "Density of Sodium", xlim = c(0,1000),
+     main = "Density distribution of Sodium in all foods")
+```
+
+The above plots show that Energy and Phosphorus are right skewed. Potassium and Sodium are uniformly distributed.
+
+Now finding <b>food categories</b> which provide these 4 nutrients:
+```{r}
+fcode_nut_catg_subset <- subset(fcode_nut_catg, fcode_nut_catg$Sodium>0 | 
+                                  fcode_nut_catg$Potassium>0 |
+                                  fcode_nut_catg$Phosphorus>0 |
+                                  fcode_nut_catg$Energy>0)
+print("Only foods with Sodium, Potassium, Phosphorus and Energy")
+print(head(fcode_nut_catg_subset))
+```
+
+Showing the plots of each of these nutrients split by the food categories:
+1. 
+```{r}
+par(mfrow= c(1,1))
+
+g <- ggplot(data = fcode_nut_catg_subset)
+g + geom_jitter(aes(x =category, y = Energy, color = category)) + xlab("Food Category")+
+    ggtitle("Energy supplied by various food categories") +   theme(legend.position="bottom", legend.direction="horizontal")
+```
+
+Fats give the most energy, closely followed by legumes,nuts and seeds. Grains show a wide spread of energy contribution to the diet. Vegetables and fruits give the least energy
+
+2.
+```{r}
+g + geom_jitter(aes(x =category, y = Potassium, color = category))+ 
+  ylim(0,1800)  + xlab("Food Category")+
+  ggtitle("Potassium supplied by various food categories") +   theme(legend.position="bottom", legend.direction="horizontal")
+```
+
+Grains, fruits and vegetables give the most Potassium
+
+3.
+```{r}
+g + geom_jitter(aes(x =category, y = Sodium, color = category))+ 
+  ylim(0,1800) + xlab("Food Category")+
+    ggtitle("Sodium supplied by various food categories")+
+  theme(legend.position="bottom", legend.direction="horizontal")
+```
+
+Grains and meat & fish give the most Sodium
+
+4.
+```{r}
+g + geom_jitter(aes(x =category, y = Phosphorus, color = category))+ 
+  ylim(0,1800) +  xlab("Food Category")+
+    ggtitle("Phosphorus supplied by various food categories") +  theme(legend.position="bottom", legend.direction="horizontal")
+```
+
+Phosphorus is found in very low quantity as compared to the above 3 nutrients. Higher quantities can be obtained from Grains and meat & fish
+
+__It has alsp been seen that the original dataset also gives a similar composition.__
+
+<h2> Part-2 of Exploratory Analysis </h2>
+
+<b>Cheking if items which are fortified have higher nutrients than those which are not</b>
+
+Number of food items which are/are not fortified 
+```{r}
+res2 <- sqldf("SELECT fortification_id, count(*) fortified_items
+              FROM MainFoodDesc 
+              GROUP BY fortification_id
+              ORDER BY fortified_items DESC
+              ") 
+print("Number of items which are fortified, according to fortification id:")
+print(res2)
+```
+
+Plotting this to show that the number of non-fortified food products are almost the double of those which are fortified
+
+```{r}
+g<- ggplot(res2)
+g+geom_dotplot(aes(fortified_items, fill= as.factor(fortification_id)))+
+               xlab("Elements in Fortification categories")+ ylab("")+
+  ggtitle("Number of elements in each fortification group")
+```
+
+Non-Fortified food items:
+
+```{r}
+res2_not_fortified <- sqldf("SELECT category, sum(Energy) total_Energy, 
+                              sum(Potassium) total_Potassium, 
+                              sum(Sodium) total_Sodium, 
+                              sum(Phosphorus) total_Phosphorus
+                            FROM fcode_nut_catg
+                            WHERE food_code IN (SELECT food_code from MainFoodDesc 
+                                                WHERE fortification_id = 0)                 
+                            GROUP BY category
+                            ")
+print("Non-Fortified Items")
+print(head(res2_not_fortified))
+```
+
+Fortified food items:
+
+```{r}
+res2_fortified <- sqldf("SELECT category, sum(Energy) total_Energy, 
+                            sum(Potassium) total_Potassium, 
+                            sum(Sodium) total_Sodium, 
+                            sum(Phosphorus) total_Phosphorus
+                            FROM fcode_nut_catg
+                            WHERE food_code IN (SELECT food_code from MainFoodDesc 
+                                                WHERE fortification_id BETWEEN 1 AND 2)     
+                            GROUP BY category
+                            ")
+print("Fortified Items")
+print(res2_fortified)
+```
+
+Foods which are Fortified are:
+1. Dairy
+2. Fats
+3. Fruits
+4. Grains
+5. Protein powder
+6. Vegetables
+
+
+
+We will now analyze these two categories of foood items and understand their nutrient composition:
+1. Fortified Foods 
+2. Non-Fortified Foods
+
+```{r}
+library(reshape2)
+
+res2_not_fortified_melt <- melt(res2_not_fortified, id.vars = "category")
+g_notfort<- ggplot(data = res2_not_fortified_melt)
+g_notfort + geom_jitter(aes(x =variable, y = value, color = variable))+ 
+  xlab("Nutrients") + ylab("Nutritional Value")+ ylim(0,8000)+
+  facet_wrap(~category) + ggtitle("Total Nutrition in Non-Fortified Foods")
+
+res2_fortified_melt <- melt(res2_fortified, id.vars = "category")
+g_fort <- ggplot(data = res2_fortified_melt)
+g_fort + geom_jitter(aes(x =variable, y = value, color = variable))+ 
+  xlab("Nutrients") + ylab("Nutritional Value") + ylim(0,8000)+
+  facet_wrap(~category) + ggtitle("Total Nutrition in Fortified Foods")
+```
+
+
+<b>Despite the fact that the number of non-fortified food items are double than the items which are fortified; the fortified foods show a much higher total nutrititional value for all categories except fruits. This shows that fortification is the reason Energy, Potassium, Sodium and Phosphorus showed extremely high nutritional values as in Part-1 of the analysis.</b>
+
+<h2> Part-3: Understanding the food categories in the generated dataset
+
+Number of items in each food_category:
+```{r}
+res3 <- sqldf("SELECT DISTINCT(category), count(*) food_categories
+              FROM fcode_nut_catg 
+              GROUP BY category
+              ORDER BY food_categories ASC
+              ") 
+print(res3)
+```
+
+
+Total number of food items in the generated dataset:
+```{r}
+total_foods <- sqldf("SELECT sum(food_categories) total_food_items FROM res3")
+print(total_foods)
+```
+
+
+Minimum, maximum and average nutrients of each food_category in the data set:
+```{r}
+res4 <- sqldf("SELECT fng.category food_category, 
+                  nd.nutrient_description nutrient,
+                  min(fnv.nutrient_value) min_nutrients, 
+                  max(fnv.nutrient_value) max_nutrients, 
+                  avg(fnv.nutrient_value) avg_nutrients
+              FROM fcode_nut_catg fng
+              INNER JOIN FNDDSNutVal fnv ON fnv.food_code = fng.food_code 
+              INNER JOIN NutDesc nd ON fnv.nutrient_code = nd.nutrient_code
+              GROUP BY food_category, nutrient
+              ")
+print(res4)
+```
+
+Selecting known nutrients only. i.e. removing nutrients with numerical headers (no description)
+```{r}
+res4_nut_categ <- sqldf("SELECT fng.category food_category, 
+                    nd.nutrient_description nutrient,
+                    fnv.nutrient_value nutrient_value
+                    FROM fcode_nut_catg fng
+                    INNER JOIN FNDDSNutVal fnv ON fnv.food_code = fng.food_code 
+                    INNER JOIN (SELECT nutrient_code, nutrient_description FROM NutDesc 
+                                WHERE nutrient_code NOT BETWEEN 607 and 631
+                    )nd ON fnv.nutrient_code = nd.nutrient_code
+                   ")
+```
+
+
+Now using boxplots to see the spread of nutrient value in each food category and each nutrient:
+```{r}
+res4_nut_categ_melted <- melt(data = res4_nut_categ, 
+                              id = c("food_category", "nutrient"))
+g_res4 <- ggplot(data = res4_nut_categ_melted)
+g_res4 + geom_boxplot(aes(x=food_category, y=value, fill=nutrient)) +
+  theme(legend.position="bottom", legend.direction="horizontal")
+```
+
+Since nothing is visible from the above graphs basically because of the outliers present in
+the data. Setting y-limit and splittig into two data frames to analyze and see the boxplots closely
+
+Plotting nutrients in 'alcohol', 'dairy', 'fats' and 'grains':
+```{r}
+res41 <- sqldf("SELECT fng.category food_category, 
+                    nd.nutrient_description nutrient,
+                        fnv.nutrient_value nutrient_value
+                        FROM fcode_nut_catg fng
+                        INNER JOIN FNDDSNutVal fnv ON fnv.food_code = fng.food_code 
+                        INNER JOIN (SELECT nutrient_code, nutrient_description FROM NutDesc 
+                        WHERE nutrient_code NOT BETWEEN 607 and 631
+                        )nd ON fnv.nutrient_code = nd.nutrient_code
+                        WHERE food_category IN ('alcohol', 'dairy', 'fats', 'grains')
+                        ")
+res41_melted <- melt(data = res41, id = c("food_category", "nutrient"))
+g_res41_nooutlier <- ggplot(data = res41_melted)
+g_res41_nooutlier + geom_boxplot(aes(x=food_category, y=value, fill=nutrient)) +
+   theme(legend.position="bottom", legend.direction="horizontal") + ylab("Nutrient Value") +
+  ggtitle("Box-plots for Nutrients in alcohol, dairy, fats and grains")
+```
+
+Plotting nutrients in 'fruits', 'legumes,nuts,seeds', 'meat,fish':
+```{r}
+res42 <- sqldf("SELECT fng.category food_category, 
+                    nd.nutrient_description nutrient,
+               fnv.nutrient_value nutrient_value
+               FROM fcode_nut_catg fng
+               INNER JOIN FNDDSNutVal fnv ON fnv.food_code = fng.food_code 
+               INNER JOIN (SELECT nutrient_code, nutrient_description FROM NutDesc 
+               WHERE nutrient_code NOT BETWEEN 607 and 631
+               )nd ON fnv.nutrient_code = nd.nutrient_code
+               WHERE food_category IN ('fruits','legumes,nuts,seeds', 'meat,fish' )
+               ")
+res42_melted <- melt(data = res42, id = c("food_category", "nutrient"))
+g_res42_nooutlier <- ggplot(data = res42_melted)
+g_res42_nooutlier + geom_boxplot(aes(x=food_category, y=value, fill=nutrient)) +
+  theme(legend.position="bottom", legend.direction="horizontal") + ylab("Nutrient Value") +
+  ggtitle("Box-plots for Nutrients in 'fruits', 'legumes,nuts,seeds', 'meat,fish'") + 
+  ylim(0,750)
+```
+
+Plotting nutrients in 'protein powder','sugars', 'vegetables':
+```{r}
+res43 <- sqldf("SELECT fng.category food_category, 
+                    nd.nutrient_description nutrient,
+               fnv.nutrient_value nutrient_value
+               FROM fcode_nut_catg fng
+               INNER JOIN FNDDSNutVal fnv ON fnv.food_code = fng.food_code 
+               INNER JOIN (SELECT nutrient_code, nutrient_description FROM NutDesc 
+               WHERE nutrient_code NOT BETWEEN 607 and 631
+               )nd ON fnv.nutrient_code = nd.nutrient_code
+               WHERE food_category IN ('protein powder','sugars', 'vegetables' )
+               ")
+res43_melted <- melt(data = res43, id = c("food_category", "nutrient"))
+g_res43_nooutlier <- ggplot(data = res43_melted)
+g_res43_nooutlier + geom_boxplot(aes(x=food_category, y=value, fill=nutrient)) +
+  theme(legend.position="bottom", legend.direction="horizontal") + ylab("Nutrient Value") +
+  ggtitle("Box-plots for Nutrients in protein powder,sugars and vegetables") + 
+  ylim(0,400)
+```
+
+
+<h2>Part-4 ALL Food and ALL nutrient Analysis</h2>
+
+Now for <b>all foods and all nutrients</b> Finding Nutrition in foods which are fortified v/s food which are not
+
+```{r}
+res5 <- sqldf("SELECT * 
+              FROM fcode_nut_catg 
+              INNER JOIN (SELECT food_code FROM 
+                          MainFoodDesc
+                          WHERE fortification_id>0) mfd
+              ON fcode_nut_catg.food_code = mfd.food_code
+            ") 
+#removing food codes from res5
+res5 <- res5[-c(ncol(res5), ncol(res5)-2)]
+
+print("Fortified foods:")
+print(head(res5))
+
+res6 <- sqldf("SELECT * 
+              FROM fcode_nut_catg 
+              INNER JOIN (SELECT food_code FROM 
+              MainFoodDesc
+              WHERE fortification_id == 0) mfd
+              ON fcode_nut_catg.food_code = mfd.food_code
+              ") 
+#removing food codes from res6
+res6 <- res6[-c(ncol(res6), ncol(res6)-2)]
+print("Non-Fortified foods:")
+print(head(res5))
+```
+
+Plot on same grid, each nutrient colored differently
+```{r}
+library(reshape2)
+df5 <- melt(res5 )
+df6 <- melt(res6)
+ggplot(df5, aes(x = value)) + geom_density(aes(color=variable)) +
+  theme(legend.position="bottom", legend.direction="horizontal") +
+  ylab("Nutrient Density") +
+  ggtitle("Density for Nutrients in all fortified foods")
+```
+
+Zooming in on xlim 0-50 to see it closely
+```{r}
+ggplot(df5, aes(x = value)) + geom_density(aes(color=variable)) +
+  theme(legend.position="bottom", legend.direction="horizontal") + xlim(0,50)
+
+ggplot(df6, aes(x = value)) + geom_density(aes(color=variable)) +
+  theme(legend.position="bottom", legend.direction="horizontal") 
+```
+
+Zooming in in xlim 0-10 to see it closely
+```{r}
+ggplot(df6, aes(x = value)) + geom_density(aes(color=variable)) +
+  theme(legend.position="bottom", legend.direction="horizontal") + xlim(0,10)+ 
+  ylab("Nutrient Density") +
+  ggtitle("Density for Nutrients in all non-fortified foods")
+```
+
+
+<h4>Summarizing overall data</h4>
+```{r}
+print(summary(fcode_nut_catg))
+```
+
+__Developing the final dataset from the above data frame. This will be used for analysis in SVM and Logistic Regression. We have chose the Vitamin C because it is distinctly present in a lot of fruits. Same goes for Sugar. Vitamin B12, Fat and Energy are supposed to be very significant in vegetables. Sodium, Potasium and Phosphorus, as analyzed in the first par of exploratory analysis are very significantly present in the food overall and can not be ignored. Calcium is a very important component of dairy foods. Iron is a major component of many vegetables. Most vegetables pulses and meat are protein rich. Water content is higher in fruits than in vegetables. Hence, we will continue with these features for the models.__
+
+```{r}
+data_final <- fcode_nut_catg[, c("Calcium", "Carbohydrate", "Energy", "Iron", 
+                                            "Protein", "Total Fat", "Sugars, total", 
+                                            "Potassium", "Phosphorus", "Sodium", 
+                                            "Vitamin C", "Vitamin B-12", 
+                                            "Vitamin D (D2 + D3)","Water", "category")]
+colnames(data_final)<- c("Calcium",	"Carbohydrate",	"Energy",	"Iron",
+                                   "Protein",	"Total_Fat",	"Total_Sugar",	"Potassium",
+                                   "Phosphorus",	"Sodium",	"Vitamin_C",	"Vitamin_B12",
+                                   "Vitamin_D",	"Water", "Category")
+```
+
+Final dataset: boxplot distributions
+```{r}
+data_final_melt <- melt(data_final)
+g1 <- ggplot(data = data_final_melt)
+g1 + geom_boxplot(aes(x = variable, y = value, fill = Category))+
+    ggtitle("Nutrients value in different food components") +
+    labs(x="Nutrient",y="Nutrient Value ") + ylim(0,700)
+```
+
+Final dataset summary
+```{r}
+print(summary(data_final))
+```
+
+Min, max, median and interquartile range of all the above nutrients on the basis of food categories
+```{r}
+#install.packages("doBy")
+library(doBy)
+print(summaryBy(.~Category, data=data_final, 
+          FUN = function(x) c(Minimum=min(x), Mean=mean(x, na.rm = T), Median=median(x),
+                              Maximum=max(x), Inter_quartile_range=IQR(x))))
+```
+
+Final counts of number of rows by food categories
+```{r}
+final_counts <- sqldf("SELECT Category, count(*) Frequency FROM data_final 
+                      Group by Category
+                      ORDER BY Frequency DESC")
+print(final_counts)
+```
+
+<h2> Part-5: T-Tests</h2>
+
+T-tests for "dairy", "meat,fish", "legumes,nuts,seeds", "grains", "fruits", "vegetables", "fats", "sugars", "alcohol" and "protein powder"
+```{r}
+#Obtaining subset of all food categories
+Dairy_df<-sqldf("select * from data_final WHERE Category='dairy'")
+Meat_df<-sqldf("select * from data_final WHERE Category='meat,fish'")
+Legumes_df<-sqldf("select * from data_final WHERE Category='legumes,nuts,seeds'")
+Grains_df<-sqldf("select * from data_final WHERE Category = 'grains'")
+Fruits_df<-sqldf("select * from data_final WHERE Category ='fruits'")
+Veggie_df<-sqldf("select * from data_final WHERE Category='vegetables'")
+Fats_df<-sqldf("select * from data_final WHERE Category='fats'")
+Sugar_df<-sqldf("select * from data_final WHERE Category='sugars'")
+Alcohol_df<-sqldf("select * from data_final WHERE Category='alcohol'")
+Prot_df<-sqldf("select * from data_final WHERE Category='protein powder'")
+
+```
+
+<b>Now, we can calculte the mean values of each nurtrient from our final dataset. This will give us an idea of what foodcategories+nutrients to apply T-tests on.</b>
+```{r}
+t_test_exp <- sqldf("SELECT  Category,
+              avg(Calcium), avg(Carbohydrate),	avg(Energy),	avg(Iron),
+              avg(Protein),	avg(Total_Fat),	avg(Total_Sugar),	avg(Potassium),
+              avg(Phosphorus),	avg(Sodium),	avg(Vitamin_C), avg(Vitamin_B12),
+              avg(Vitamin_D), avg(Water)
+              FROM data_final
+              GROUP BY Category
+              ")
+print(t_test_exp)
+```
+
+CALCIUM
+p-value = 0.6522: T-test for mean value of Calcium in Fats and Sugar shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Fats_df$Calcium,y = Sugar_df$Calcium)
+```
+
+p-value = 0.9897: T-test for mean value of Calcium in Meat/fish and Vegetables shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Veggie_df$Calcium,y = Meat_df$Calcium)
+```
+
+CARBOHYDRATE
+p-value = 0.5256: T-test for mean value of Carbohydrate in Meat/fish and Vegetables shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Veggie_df$Carbohydrate,y = Meat_df$Carbohydrate)
+```
+
+p-value = 0.9564: T-test for mean value of Carbohydrate in fruits and dairy shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Fruits_df$Carbohydrate,y = Dairy_df$Carbohydrate)
+```
+
+ENERGY
+p-value = 0.01831: T-test for mean value of Energy in fruits and Vegetables shows that the mean of the two data sets is not the same
+```{r}
+t.test(x = Fruits_df$Energy,y = Veggie_df$Energy)
+```
+
+PROTEIN
+p-value = 0.7247: T-test for mean value of Protein in legumes,nuts,seeds and Meat/fish shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Legumes_df$Protein,y = Meat_df$Protein)
+```
+
+p-value = 3.889e-06: T-test for mean value of Protein in Vegetables and Fruits shows that the mean of the tw data sets is not the same
+```{r}
+t.test(x = Veggie_df$Protein,y = Fruits_df$Protein)
+```
+
+TOTAL FAT
+p-value = 0.9721: T-test for mean value of Fat in Vegetables and Fruits shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Veggie_df$Total_Fat,y = Fruits_df$Total_Fat)
+```
+
+p-value = 0.9412: T-test for mean value of Fat in Meat/fish and Dairy shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Dairy_df$Total_Fat,y = Meat_df$Total_Fat)
+```
+
+TOTAL SUGAR
+p-value = 9.143e-06: T-test for mean value of Sugar in Vegetables and Fruits shows that the mean of the tw data sets is not the same
+```{r}
+t.test(x = Veggie_df$Total_Sugar,y = Fruits_df$Total_Sugar)
+```
+
+POTASSIUM
+p-value = 0.6882: T-test for mean value of Potassium in Grains and Fruits shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Fruits_df$Potassium,y = Grains_df$Potassium)
+```
+
+PHOSPHORUS
+p-value = 0.2271: T-test for mean value of Phosphorus in Fats and Fruits shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Fruits_df$Phosphorus,y = Fats_df$Phosphorus)
+```
+
+SODIUM
+p-value = 0.797: T-test for mean value of Sodium in Grains and legumes,nuts,seeds shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Grains_df$Sodium,y = Legumes_df$Sodium)
+```
+
+VITAMIN C
+p-value = 0.4535: T-test for mean value of Vitamin C in Alcohol and Dairy shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Alcohol_df$Vitamin_C,y = Dairy_df$Vitamin_C)
+```
+
+VITAMIN B12
+p-value = 0.3046: T-test for mean value of Vitamin B12 in legumes,nuts,seeds and Vegetables shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Legumes_df$Vitamin_B12,y = Veggie_df$Vitamin_B12)
+```
+
+VITAMIN D
+p-value = 0.95: T-test for mean value of Vitamin D in Fats and Grains shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Fats_df$Vitamin_D,y = Grains_df$Vitamin_D)
+```
+
+p-value = 0.5727: T-test for mean value of Vitamin D in Fruits and Vegetables shows that there is not enough evidence to reject the null hypothesis that the means are equal
+```{r}
+t.test(x = Fruits_df$Vitamin_D,y = Veggie_df$Vitamin_D)
+```
+
+<h2> Part-6: CORRELATIONS Between Nutrients</h2>
+
+```{r}
+par(mfrow= c(1,1))
+corrplot::corrplot(cor(data_final[,-c(ncol(data_final))], 
+                       method = c("pearson", "kendall", "spearman")), tl.cex=0.6, tl.col = "black", title = "Correlations in Nutrients") 
+correlations <- cor(data_final[-ncol(data_final)], use="pairwise")
+print(correlations)
+```
+1. This shows that Energy and Total Fat are highly likely to be found together- correlation 0.79
+2. It is highly unlikely that Protein and Carbohydrate will be found together in any food- correlation 0.03
+3. It is highly unlikely that Total Fat and Potassium will be found together in any food- correlation 0.04
+4. This shows that Sugar and Carbohydrate are highly likely to be found together- correlation 0.73
+5. This shows that Vitamin D and Vitamin B12 are highly likely to be found together- correlation 0.81
+6. This shows that Vitamin C and Energy are will almolst never be found together- correlation -0.28
+
+<h2> Part-7: Support Vector Machines</h2>
+
+```{r}
+veg_fruit_df <- sqldf("SELECT * FROM data_final
+                      WHERE Category IN ('vegetables', 'fruits')")
+count_veg_fruits <- sqldf("SELECT Category, COUNT(*) Frequency 
+                          FROM veg_fruit_df
+                          GROUP BY category
+                          ORDER BY frequency DESC")
+print(count_veg_fruits)
+```
+There are 53 Vegetables and 37 fruits
+
+Splitting the data into features and labels
+```{r}
+data_x<-as.matrix(veg_fruit_df[-ncol(veg_fruit_df)])
+data_y<-as.matrix(veg_fruit_df[ncol(veg_fruit_df)])
+observations <- nrow(data_y) 
+```
+data_x is a vector of numeric values 
+data_y is a vector of labels containing the classification of the corresponding xvalue 
+
+Splitting the data into train and test sets to apply cross validation as there are only 90 observations in the dataset of vegetables and fruits
+```{r}
+ntrain <- round(observations*0.75) # number of training examples 
+tindex <- sample(ntrain, size=observations, replace=TRUE) # indices of training samples '
+xtrain <- x[tindex,] 
+xtest <- x[-tindex,] 
+ytrain <- y[tindex,] 
+ytest <- y[-tindex,] 
+istrain <- rep(0, observations) 
+istrain[tindex] <- 1 
+```
+
+Applying Linear Support Vector Machines classification on the data to train the SVC model. Taking the cost function as 100
+```{r}
+svp <- kernlab::ksvm(x=xtrain,y=ytrain,type="C-svc",kernel='vanilladot',C=100,scaled=c()) 
+
+print(summary(svp))
+```
+
+Now that the SVM model has been trained. We will evaluate the prediction of the model
+```{r}
+ypred <- predict(svp,xtest) 
+confusion_matrix<- table(ytest,ypred) 
+accuracy <- sum(ypred==ytest)/length(ytest)
+
+print("Confusion Matrix:")
+print(confusion_matrix)
+print()
+print("Accuracy of the SVM model")
+print(accuracy)
+```
+
+
+<h2> Part-8: Logistic Regression only for Classification</h2>
+
+Binomial Logistic Regression requires that the data labels are 0s and 1s
+Changing labels for fruits to 0s and Vegetables to 1s. Consequently, fitting a null model and generating it's summary for model evaluation
+```{r}
+Data_LRM <- veg_fruit_df
+Data_LRM$Category <- ifelse(Data_LRM$Category=="fruits",0,1)
+Data_LRM$Category <- as.factor(Data_LRM$Category)
+fit.null <- glm(Category ~ 1, family=binomial(link="logit"), data=Data_LRM)
+print(summary(fit.null))
+```
+
+Now, fitting a full model to the logistic regression data and calling its summary to evaluate the full model
+```{r}
+fit.full <- glm(Category~., family=binomial(link="logit"), data=Data_LRM)
+print(summary(fit.full))
+```
+
+We will now use the step function to see between a null and a full model which one is the best fit for the data, such that we have the lowest AIC scores for certain degree of freedom
+```{r}
+fit.step <- step(fit.null, 
+                 scope=list(lower=fit.null, upper=fit.full), direction=  "both")
+print(fit.step)
+```
+
+This gives us a logistic regression model which is a perfect fit for our data. The perfect fit with the given featurs is: #ljdfhljdf
+No, fitting a model based on the results of the step function:
+```{r}
+fit_lrm <- glm(Category~Total_Sugar + Sodium + Phosphorus + Total_Fat + Potassium, family=binomial(link="logit"), data=Data_LRM)
+```
+
+We will find the R2 of the logistic Regression model fit above based on the function defined below:
+```{r}
+logisticPseudoR2s <- function(LogModel) {
+  dev <- LogModel$deviance 
+  nullDev <- LogModel$null.deviance 
+  modelN <-  length(LogModel$fitted.values)
+  R.l <-  1 -  dev / nullDev
+  R.cs <- 1- exp ( -(nullDev - dev) / modelN)
+  R.n <- R.cs / ( 1 - ( exp (-(nullDev / modelN))))
+  cat("Pseudo R^2 for logistic regression\n")
+  cat("Hosmer and Lemeshow R^2  ", round(R.l, 3), "\n")
+  cat("Cox and Snell R^2        ", round(R.cs, 3), "\n")
+  cat("Nagelkerke R^2           ", round(R.n, 3),    "\n")
+}
+
+print(logisticPseudoR2s(fit_lrm))
+```
+This shos that: ####
+
+Now, we will test fit_lrm model's improvement over the null model using chi2
+```{r}
+modelChi <- fit_lrm$null.deviance - fit_lrm$deviance
+chidf <- fit_lrm$df.null - fit_lrm$df.residual
+```
+We should note that:
+1. pchisq is cumulative distribution function for the chi-squared 
+2. (chi^2) distribution with chidf degrees of freedom for quantile = modelChi = null deviance - model deviance
+3. So (1 - pchisq) is the prob of a test stastistic this good or better by chance chisq.prob <- 1 - pchisq(modelChi, chidf)
+
+Evaluating and understanding the chi2 test
+```{r}
+print(modelChi)
+print(chidf) 
+print(chisq.prob)
+```
+We can see that chisq.prob = 0.
+This indicates improved fit in this model over intercept only (null model) is significant.

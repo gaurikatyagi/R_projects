@@ -607,7 +607,7 @@ g_fort + geom_jitter(aes(x =variable, y = value, color = variable))+
 
 <b>Despite the fact that the number of non-fortified food items are double than the items which are fortified; the fortified foods show a much higher total nutrititional value for all categories except fruits. This shows that fortification is the reason Energy, Potassium, Sodium and Phosphorus showed extremely high nutritional values as in Part-1 of the analysis.</b>
 
-<h2> Part-3: Understanding the food categories in the generated dataset
+<h2> Part-3: Understanding the food categories in the generated dataset </h2>
 
 Number of items in each food_category:
 ```{r}

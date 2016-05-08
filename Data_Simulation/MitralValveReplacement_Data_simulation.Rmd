@@ -36,11 +36,16 @@ The aim of the study is to quantify the survival and morbidity after valve repla
 2. _Stroke and Bleeding_: Higher in those who received mechanical prosthetic mitral valves compared 
 3. _Reoperation_: Lower in the mechanical prosthesis group compared with the bioprosthesis group
 
+<H2>Data Simulation </H2>
+
 Install Libraries
+
 ```{r}
 #install.packages("ggplot2")
 library(ggplot2)
 ```
+
+<H3>Generate dataset for people who underwent Bioprosthetic Mitral Valve Replacement</H3>
 
 ```{r}
 genBioprosthetic <- function(number){
@@ -69,7 +74,8 @@ genBioprosthetic <- function(number){
   race <- sample(x = race_raw, size = number, replace = FALSE) 
   #distribution of age by race
   boxplot(age~race,  col = (c("Dark Green","blue", "Yellow", "Red")),
-        main = "Distribution of Age by Race", xlab = "Race", ylab = "Age(in years)")
+        main = "Distribution of Age by Race", xlab = "Race", ylab = "Age(in years)", 
+        cex.axis=0.75)
 
   emergent_admission <- rbinom(n = number, size = 1, prob = 0.55)
 
@@ -104,8 +110,24 @@ genBioprosthetic <- function(number){
                rep(x = "2007", times = ceiling(0.17*number))
                )
   year <- sample(x = years_raw, size = number, replace = FALSE)
+  
+  #collaborate all features to develop data set
+  bioprosthetics <- data.frame(age, sex, race, emergent_admission,
+                               concomitant_tricuspid_valve_repair, coagulation, hypertension,
+                               diabetes_mellitus, sepsis, coronary_artery_disease,
+                               congestive_heart_failure, artrial_fibrillation,
+                               peripheral_vascular_disease, cerebro_vascular_disease,
+                               chronic_obstructive_pulmonary_disease, chronic_kidney_disease,
+                               liver_disease, cancer, year)
 
+  return(bioprosthetics)
 } 
 print("Generating dataset for people who had Bioprosthetic Valve replacement")
 bioprosthetic_group <- genBioprosthetic(795)
 ```
+
+Similary now we need to develop the data set for group of people who underwent Mechnaical Prosthetic Mitral Valve replacement.
+
+<H3>Generate dataset for people who underwent Mechnaical Prosthetic Mitral Valve Replacement</H3>
+
+

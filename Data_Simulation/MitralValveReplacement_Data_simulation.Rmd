@@ -36,3 +36,24 @@ The aim of the study is to quantify the survival and morbidity after valve repla
 2. _Stroke and Bleeding_: Higher in those who received mechanical prosthetic mitral valves compared 
 3. _Reoperation_: Lower in the mechanical prosthesis group compared with the bioprosthesis group
 
+```{r}
+genBioprosthetic <- function(number){
+  
+  #Demographics
+  age <- rnorm(n = number, mean = 61.2, sd = 5.9)
+  
+  #we know that 43% of the Bioprosthetics are males
+  male <- rep(x = "male", times = floor(0.43*number))
+  female <- rep(x = "female", times = ceiling(0.57*number))
+  #length(male)
+  #length(female)
+  sex_raw <- c(male, female)
+  sex <- sample(x = sex_raw, size = number, replace = FALSE)
+
+  races <- c('Non_Hispanic_White', 'Non_Hispanic_Black', 'Hispanic', 'Other')
+  
+  
+  #Comorbidities
+  coronoryArteryDisease <- c('Without_Prior_Revascularization', 'Prior_PCI', 'Prior_CABG_Surgery')
+}  
+```

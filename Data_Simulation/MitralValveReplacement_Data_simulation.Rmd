@@ -1,0 +1,38 @@
+---
+title: "Mitral Valve Replacement Data Simulation"
+author: "Gaurika Tyagi"
+date: "7 May 2016"
+output: html_document
+---
+
+<Center><H1><U>Mitral Valve Replacement (50 to 69 year olds)- Bioprosthetic vs Mechanical</U></H1></center>
+
+<H2> Introduction </H2>
+
+Mitral valve disease is a conditions of the mitral valve. This is located between the left chambers of the heart and works to keep blood flowing properly. It allows blood to pass from the left atrium to the left ventricle but prevents it from flowing backwards. People with Mitral disease have a disfunctional mitral valve which allows the flow of blood backwards to the atrium. This disease may lead to heart failure or irregular heartbeats, which may be life threatening.
+
+Many people do not experience any symptom. However, in cases where there are symptoms, they are:
+
+1. Fatigue
+2. Shortness of breath
+
+This study focuses on the <b> survival outcomes following bioproshetic v/s mechanical Mitral Valve replacement</b>. It is only based on patients aged between 50-69 years as it is a challenging task to decide between the two because the long-term survival and morbidity are not well defined.
+
+19 baseline characteristics yielded 664 patient pairs.
+
+<B>Definitions</B>
+_Morbidity_: Morbidity is used to describe how often a disease occurs in a specific area or to describe a focus on death. In other words, it is the incidence of disease.
+
+_Propensity Score_: In the statistical analysis propensity score matching (PSM) is a statistical matching technique that attempts to estimate the effect of a treatment by accounting for the covariates that predict receiving the treatment.
+
+_Comorbidity_: The simultaneous presence of two chronic diseases or conditions in a patient
+
+<H2> Objective </H2>
+The aim of the study is to quantify the survival and morbidity after valve replacement in patients aged 50-69 years.
+
+<H2> Study Results </H2>
+
+1. _Survival Difference_: None at 15 years of observation
+2. _Stroke and Bleeding_: Higher in those who received mechanical prosthetic mitral valves compared 
+3. _Reoperation_: Lower in the mechanical prosthesis group compared with the bioprosthesis group
+

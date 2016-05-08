@@ -36,24 +36,47 @@ The aim of the study is to quantify the survival and morbidity after valve repla
 2. _Stroke and Bleeding_: Higher in those who received mechanical prosthetic mitral valves compared 
 3. _Reoperation_: Lower in the mechanical prosthesis group compared with the bioprosthesis group
 
+Install Libraries
+```{r}
+#install.packages("ggplot2")
+library(ggplot2)
+```
+
 ```{r}
 genBioprosthetic <- function(number){
   
   #Demographics
   age <- rnorm(n = number, mean = 61.2, sd = 5.9)
-  
+  #density distribution of age
+  hist(age, main = "Density of age distribution for Bioprosthetics", 
+       freq = FALSE, ylim = c(0, 0.08) , xlab = "Age in years")
+  lines(density(age), col = "dark green", lty="dotted")
+
   #we know that 43% of the Bioprosthetics are males
   male <- rep(x = "male", times = floor(0.43*number))
   female <- rep(x = "female", times = ceiling(0.57*number))
-  #length(male)
-  #length(female)
   sex_raw <- c(male, female)
   sex <- sample(x = sex_raw, size = number, replace = FALSE)
+  #distribution of age by sex
+  boxplot(age~sex,  col = (c("pink","blue")),
+        main = "Distribution of Age by Sex", xlab = "Sex", ylab = "Age(in years)")
 
-  races <- c('Non_Hispanic_White', 'Non_Hispanic_Black', 'Hispanic', 'Other')
-  
-  
+  non_his_w <- rep(x = "Non_Hispanic_White", times = floor(0.57*number))
+  non_his_b <- rep(x = "Non_Hispanic_Black", times = floor(0.13*number))
+  hisp <- rep(x = "Hispanic", times = ceiling(0.08*number))
+  oth <- rep(x = "Other", times = ceiling(0.22*number))
+  race_raw <- c(non_his_w, non_his_b, hisp, oth)
+  race <- sample(x = race_raw, size = number, replace = FALSE) 
+  #distribution of age by race
+  boxplot(age~race,  col = (c("Dark Green","blue", "Yellow", "Red")),
+        main = "Distribution of Age by Race", xlab = "Race", ylab = "Age(in years)")
+
+  emergent_admission <- rbinom(n = number, size = 1, prob = 0.55)
+
+  concomitant_tricuspid_valve_repair <- rbinom(n = number, size = 1, prob = 0.05)
+
   #Comorbidities
   coronoryArteryDisease <- c('Without_Prior_Revascularization', 'Prior_PCI', 'Prior_CABG_Surgery')
 }  
+genBioprosthetic(795)
 ```

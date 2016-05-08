@@ -48,7 +48,7 @@ library(ggplot2)
 <H3>Generate dataset for people who underwent Bioprosthetic Mitral Valve Replacement</H3>
 
 ```{r}
-genBioprosthetic <- function(number){
+genBioProsthetic <- function(number){
   
   #Demographics
   age <- rnorm(n = number, mean = 61.2, sd = 5.9)
@@ -123,11 +123,88 @@ genBioprosthetic <- function(number){
   return(bioprosthetics)
 } 
 print("Generating dataset for people who had Bioprosthetic Valve replacement")
-bioprosthetic_group <- genBioprosthetic(795)
+bioprosthetic_group <- genBioProsthetic(795)
 ```
 
-Similary now we need to develop the data set for group of people who underwent Mechnaical Prosthetic Mitral Valve replacement.
+Similary now we need to develop the data set for group of people who underwent Mechanical Prosthetic Mitral Valve replacement.
 
-<H3>Generate dataset for people who underwent Mechnaical Prosthetic Mitral Valve Replacement</H3>
+<H3>Generate dataset for people who underwent Mechanical Prosthetic Mitral Valve Replacement</H3>
 
+```{r}
+genMechanicalProsthetic <- function(number){
+  
+  #Demographics
+  age <- rnorm(n = number, mean = 59.7, sd = 5.7)
+  #density distribution of age
+  hist(age, main = "Density of age distribution for Bioprosthetics", 
+       freq = FALSE, ylim = c(0, 0.08) , xlab = "Age in years")
+  lines(density(age), col = "dark green", lty="dotted")
 
+  #we know that 40% of the Mechanical Prosthetics are males
+  male <- rep(x = "male", times = floor(0.40*number))
+  female <- rep(x = "female", times = ceiling(0.60*number))
+  sex_raw <- c(male, female)
+  sex <- sample(x = sex_raw, size = number, replace = FALSE)
+  #distribution of age by sex
+  boxplot(age~sex,  col = (c("pink","blue")),
+        main = "Distribution of Age by Sex", xlab = "Sex", ylab = "Age(in years)")
+
+  non_his_w <- rep(x = "Non_Hispanic_White", times = floor(0.56*number))
+  non_his_b <- rep(x = "Non_Hispanic_Black", times = floor(0.11*number))
+  hisp <- rep(x = "Hispanic", times = ceiling(0.07*number))
+  oth <- rep(x = "Other", times = ceiling(0.26*number))
+  race_raw <- c(non_his_w, non_his_b, hisp, oth)
+  race <- sample(x = race_raw, size = number, replace = FALSE) 
+  #distribution of age by race
+  boxplot(age~race,  col = (c("Dark Green","blue", "Yellow", "Red")),
+        main = "Distribution of Age by Race", xlab = "Race", ylab = "Age(in years)", 
+        cex.axis=0.75)
+
+  emergent_admission <- rbinom(n = number, size = 1, prob = 0.42)
+
+  concomitant_tricuspid_valve_repair <- rbinom(n = number, size = 1, prob = 0.03)
+
+  #Comorbidities
+  coagulation <- rbinom(n = number, size = 1, prob = 0.05)
+  hypertension <- rbinom(n = number, size = 1, prob = 0.52)
+  diabetes_mellitus <- rbinom(n = number, size = 1, prob = 0.17)
+  sepsis <- rbinom(n = number, size = 1, prob = 0.02)
+  coronary_artery_disease <- rbinom(n = number, size = 1, prob = 0.31)
+  congestive_heart_failure <- rbinom(n = number, size = 1, prob = 0.53)
+  artrial_fibrillation <- rbinom(n = number, size = 1, prob = 0.51)
+  peripheral_vascular_disease <- rbinom(n = number, size = 1, prob = 0.03)
+  cerebro_vascular_disease <- rbinom(n = number, size = 1, prob = 0.08)
+  chronic_obstructive_pulmonary_disease <- rbinom(n = number, size = 1, prob = 0.18)
+  chronic_kidney_disease <- rbinom(n = number, size = 1, prob = 0.06)
+  liver_disease <- rbinom(n = number, size = 1, prob = 0.04)
+  cancer <- rbinom(n = number, size = 1, prob = 0.02)
+  
+  #Year of Surgery
+  years_raw <- c(rep(x = "1997", times = floor(0.12*number)), 
+               rep(x = "1998", times = floor(0.12*number)),
+               rep(x = "1999", times = floor(0.10*number)),
+               rep(x = "2000", times = floor(0.11*number)),
+               rep(x = "2001", times = floor(0.10*number)),
+               rep(x = "2002", times = ceiling(0.09*number)),
+               rep(x = "2003", times = ceiling(0.09*number)),
+               rep(x = "2004", times = ceiling(0.08*number)),
+               rep(x = "2005", times = ceiling(0.07*number)),
+               rep(x = "2006", times = ceiling(0.06*number)),
+               rep(x = "2007", times = ceiling(0.06*number))
+               )
+  year <- sample(x = years_raw, size = number, replace = FALSE)
+  
+  #collaborate all features to develop data set
+  mechprosthetics <- data.frame(age, sex, race, emergent_admission,
+                               concomitant_tricuspid_valve_repair, coagulation, hypertension,
+                               diabetes_mellitus, sepsis, coronary_artery_disease,
+                               congestive_heart_failure, artrial_fibrillation,
+                               peripheral_vascular_disease, cerebro_vascular_disease,
+                               chronic_obstructive_pulmonary_disease, chronic_kidney_disease,
+                               liver_disease, cancer, year)
+
+  return(mechprosthetics)
+} 
+print("Generating dataset for people who had Mechanical Prosthetic Valve replacement")
+mechprosthetic_group <- genMechanicalProsthetic(2638)
+```

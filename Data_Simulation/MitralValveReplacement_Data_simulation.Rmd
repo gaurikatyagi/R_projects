@@ -42,7 +42,12 @@ Install Libraries
 
 ```{r}
 #install.packages("ggplot2")
+#install.packages("lme4")
+#install.packages("matchingR")
+library(matchingR)
 library(ggplot2)
+library(lme4)
+
 ```
 
 <H3>Generate dataset for people who underwent Bioprosthetic Mitral Valve Replacement</H3>
@@ -86,7 +91,13 @@ genBioProsthetic <- function(number){
   hypertension <- rbinom(n = number, size = 1, prob = 0.59)
   diabetes_mellitus <- rbinom(n = number, size = 1, prob = 0.25)
   sepsis <- rbinom(n = number, size = 1, prob = 0.04)
-  coronary_artery_disease <- rbinom(n = number, size = 1, prob = 0.42)
+  coronory_artery_disease_raw <- c(rep(x = "Without_Prior_Revascularization", 
+                                       times = ceiling(0.32*number)),
+                                 rep(x = "Prior_PCI", times = floor(0.04*number)),
+                                 rep(x = "Prior_CABG_Surgery", times = ceiling(0.06*number)),
+                                 rep(x = "None", times = ceiling(0.58*number))
+                                )
+  coronary_artery_disease <- sample(x = coronory_artery_disease_raw, size = number, replace = FALSE)
   congestive_heart_failure <- rbinom(n = number, size = 1, prob = 0.58)
   artrial_fibrillation <- rbinom(n = number, size = 1, prob = 0.43)
   peripheral_vascular_disease <- rbinom(n = number, size = 1, prob = 0.05)
@@ -111,6 +122,8 @@ genBioProsthetic <- function(number){
                )
   year <- sample(x = years_raw, size = number, replace = FALSE)
   
+  group <- rep(x = "bio", size = number, replace = FALSE)
+
   #collaborate all features to develop data set
   bioprosthetics <- data.frame(age, sex, race, emergent_admission,
                                concomitant_tricuspid_valve_repair, coagulation, hypertension,
@@ -118,7 +131,7 @@ genBioProsthetic <- function(number){
                                congestive_heart_failure, artrial_fibrillation,
                                peripheral_vascular_disease, cerebro_vascular_disease,
                                chronic_obstructive_pulmonary_disease, chronic_kidney_disease,
-                               liver_disease, cancer, year)
+                               liver_disease, cancer, year, group)
 
   return(bioprosthetics)
 } 
@@ -169,9 +182,16 @@ genMechanicalProsthetic <- function(number){
   hypertension <- rbinom(n = number, size = 1, prob = 0.52)
   diabetes_mellitus <- rbinom(n = number, size = 1, prob = 0.17)
   sepsis <- rbinom(n = number, size = 1, prob = 0.02)
-  coronary_artery_disease <- rbinom(n = number, size = 1, prob = 0.31)
+  coronory_artery_disease_raw <- c(rep(x = "Without_Prior_Revascularization", 
+                                       times = ceiling(0.25*number)),
+                                   rep(x = "Prior_PCI", times = floor(0.02*number)),
+                                   rep(x = "Prior_CABG_Surgery", times = ceiling(0.04*number)),
+                                   rep(x = "None", times = ceiling(0.69*number))
+                                  )
+  coronary_artery_disease <- sample(x = coronory_artery_disease_raw, size = number, replace = FALSE)
+
   congestive_heart_failure <- rbinom(n = number, size = 1, prob = 0.53)
-  artrial_fibrillation <- rbinom(n = number, size = 1, prob = 0.51)
+  atrial_fibrillation <- rbinom(n = number, size = 1, prob = 0.51)
   peripheral_vascular_disease <- rbinom(n = number, size = 1, prob = 0.03)
   cerebro_vascular_disease <- rbinom(n = number, size = 1, prob = 0.08)
   chronic_obstructive_pulmonary_disease <- rbinom(n = number, size = 1, prob = 0.18)
@@ -193,18 +213,54 @@ genMechanicalProsthetic <- function(number){
                rep(x = "2007", times = ceiling(0.06*number))
                )
   year <- sample(x = years_raw, size = number, replace = FALSE)
+  group <- rep(x = "mechanical", size = number, replace = FALSE)
   
   #collaborate all features to develop data set
   mechprosthetics <- data.frame(age, sex, race, emergent_admission,
                                concomitant_tricuspid_valve_repair, coagulation, hypertension,
                                diabetes_mellitus, sepsis, coronary_artery_disease,
-                               congestive_heart_failure, artrial_fibrillation,
+                               congestive_heart_failure, atrial_fibrillation,
                                peripheral_vascular_disease, cerebro_vascular_disease,
                                chronic_obstructive_pulmonary_disease, chronic_kidney_disease,
-                               liver_disease, cancer, year)
+                               liver_disease, cancer, year, group)
 
   return(mechprosthetics)
 } 
 print("Generating dataset for people who had Mechanical Prosthetic Valve replacement")
 mechprosthetic_group <- genMechanicalProsthetic(2638)
+```
+
+<H3>Propensity score calculation to identify the matching groups </H3>
+```{r}
+# To calculate the propensity score, a hierarchical logistic regression model was fitted with 
+# bioprosthetic implantation as the outcome.
+# Gale-Shapley algorithm to find paired matches
+
+#setting up standardized differences:
+age_diff <- 0.259
+sex_proportion <- 0.059
+race_non_hisp_white <- 0.021
+race_non_hisp_black <- 0.072
+race_hisp <- 0.023
+race_other <- 0.092
+emergent_admission_diff <- 0.255
+concomitant_tricuspid_valve_repair_diff <- 0.084
+coagulation_diff <- 0.77
+hypertension_diff <- 0.146
+diabetes_mellitus_diff <- 0.194
+sepsis_diff <- 0.098
+coronory_artery_without_revasculation <- 0.165
+coronory_artery_prior_PCI <- 0.135
+coronory_artery_prior_CABG <- 0.072
+congestive_heart_failure_diff <- 0.091
+atrial_fibrillation_diff <- 0.164
+peripheral_vascular_diff <- 0.115
+cerebro_vascular_diff <- 0.039
+chronic_obstructive_pulmonary_diff <- 0.115
+chronic_kidney_diff <- 0.165
+liver_disease_diff <- 0.162
+cancer_diff <- 0.142
+```
+
+```{r}
 ```

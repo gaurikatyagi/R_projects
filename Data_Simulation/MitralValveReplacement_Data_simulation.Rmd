@@ -236,6 +236,7 @@ mechprosthetic_group <- genMechanicalProsthetic(2638)
 # bioprosthetic implantation as the outcome.
 # Gale-Shapley algorithm to find paired matches
 
+#chi2 test can only be applied on data sets of equal lengths
 #setting up standardized differences:
 age_diff <- 0.259
 sex_proportion <- 0.059
@@ -260,7 +261,34 @@ chronic_obstructive_pulmonary_diff <- 0.115
 chronic_kidney_diff <- 0.165
 liver_disease_diff <- 0.162
 cancer_diff <- 0.142
+
+#ncases = nrow(case) #57
+#ncontrol.set = nrow(control.set) # 163
+#caseUtils = matrix(0,nrow = ncontrol.set, ncol = ncases)
+#caseutils.df <- data.frame(caseUtils)
+#controlUtils = matrix(0,nrow = ncases, ncol = ncontrol.set)
+#controlutils.df <- data.frame(controlUtils)
+
+ncases <- nrow(mechprosthetic_group)
+ncontrol <- nrow(bioprosthetic_group)
+caseUtils <- matrix(0, nrow = ncontrol, ncol = ncases)
+caseUtils.df <- data.frame(caseUtils)
+controlUtils <- matrix (0, nrow = ncases, ncol = ncontrol)
+controlUtils.df <- data.frame(controlUtils)
+
+results <- galeShapley.marriageMarket(caseUtils.df, controlUtils.df) 
+#results$proposals
+#results$engagements
+
+#Now reducing the mechanicalprosthetics group and arrangung it accroding to matched pairs from 
+#bioprosthetics group
+new_mechprosthetics <- mechprosthetic_group[results$engagements, ]
+new_bioprosthetics <- bioprosthetic_group
+#nrow(new_bioprosthetics) == nrow(new_mechprosthetics)
 ```
 
+Now, we have 795 matching pairs in both mechprosthetics group and bioprsthetics group. Going ahead with these two groups of matching pairs:
+
 ```{r}
+
 ```

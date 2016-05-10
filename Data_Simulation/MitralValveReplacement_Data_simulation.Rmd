@@ -426,15 +426,27 @@ survdiff(Surv(death) ~ group, data = grouped_data)
 survival_model_groups <- survfit(Surv(death)~group, data = grouped_data)
 summary(survival_model_groups)
 
+survdiff(Surv(death) ~ year, data = grouped_data)
 survival_model_years <- survfit(Surv(death)~year, data = grouped_data)
 summary(survival_model_years)
 
+survdiff(Surv(death) ~ year+group, data = grouped_data)
 survival_model <- survfit(Surv(death)~year+group, data = grouped_data)
 summary(survival_model)
+```
 
-#coxph(formula = Surv(death) ~ ., data = grouped_data)
-#plot(survfit(Surv(death) ~ group, data = grouped_data), 
-#     lty = 1:2, mark.time = FALSE, ylab = "Probability", xlab = "Survival Time in Days")
+```{r}
+#create survival object
+grouped_data$SurvObj <- with(grouped_data, Surv(death))
+head(grouped_data)
 
-#clogit(death~group, data = grouped_data)
+# Cox regression using coxph
+coxph(SurvObj ~age + emergent_admission +        
+        concomitant_tricuspid_valve_repair + coagulation + hypertension +
+        diabetes_mellitus + sepsis + coronary_artery_disease +
+        congestive_heart_failure + atrial_fibrillation + 
+        peripheral_vascular_disease + cerebro_vascular_disease +
+        chronic_obstructive_pulmonary_disease + chronic_kidney_disease +
+                               liver_disease + cancer + group, data =  grouped_data)
+
 ```

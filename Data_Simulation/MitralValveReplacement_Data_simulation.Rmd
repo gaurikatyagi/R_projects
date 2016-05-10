@@ -42,11 +42,11 @@ Install Libraries
 
 ```{r}
 #install.packages("ggplot2")
-#install.packages("lme4")
+#install.packages("survival")
 #install.packages("matchingR")
 library(matchingR)
 library(ggplot2)
-library(lme4)
+library(survival)
 
 ```
 
@@ -99,7 +99,7 @@ genBioProsthetic <- function(number){
                                 )
   coronary_artery_disease <- sample(x = coronory_artery_disease_raw, size = number, replace = FALSE)
   congestive_heart_failure <- rbinom(n = number, size = 1, prob = 0.58)
-  artrial_fibrillation <- rbinom(n = number, size = 1, prob = 0.43)
+  atrial_fibrillation <- rbinom(n = number, size = 1, prob = 0.43)
   peripheral_vascular_disease <- rbinom(n = number, size = 1, prob = 0.05)
   cerebro_vascular_disease <- rbinom(n = number, size = 1, prob = 0.09)
   chronic_obstructive_pulmonary_disease <- rbinom(n = number, size = 1, prob = 0.23)
@@ -128,7 +128,7 @@ genBioProsthetic <- function(number){
   bioprosthetics <- data.frame(age, sex, race, emergent_admission,
                                concomitant_tricuspid_valve_repair, coagulation, hypertension,
                                diabetes_mellitus, sepsis, coronary_artery_disease,
-                               congestive_heart_failure, artrial_fibrillation,
+                               congestive_heart_failure, atrial_fibrillation,
                                peripheral_vascular_disease, cerebro_vascular_disease,
                                chronic_obstructive_pulmonary_disease, chronic_kidney_disease,
                                liver_disease, cancer, year, group)
@@ -236,59 +236,172 @@ mechprosthetic_group <- genMechanicalProsthetic(2638)
 # bioprosthetic implantation as the outcome.
 # Gale-Shapley algorithm to find paired matches
 
-#chi2 test can only be applied on data sets of equal lengths
-#setting up standardized differences:
-age_diff <- 0.259
-sex_proportion <- 0.059
-race_non_hisp_white <- 0.021
-race_non_hisp_black <- 0.072
-race_hisp <- 0.023
-race_other <- 0.092
-emergent_admission_diff <- 0.255
-concomitant_tricuspid_valve_repair_diff <- 0.084
-coagulation_diff <- 0.77
-hypertension_diff <- 0.146
-diabetes_mellitus_diff <- 0.194
-sepsis_diff <- 0.098
-coronory_artery_without_revasculation <- 0.165
-coronory_artery_prior_PCI <- 0.135
-coronory_artery_prior_CABG <- 0.072
-congestive_heart_failure_diff <- 0.091
-atrial_fibrillation_diff <- 0.164
-peripheral_vascular_diff <- 0.115
-cerebro_vascular_diff <- 0.039
-chronic_obstructive_pulmonary_diff <- 0.115
-chronic_kidney_diff <- 0.165
-liver_disease_diff <- 0.162
-cancer_diff <- 0.142
+case<- bioprosthetic_group
+control.set<-mechprosthetic_group
 
-#ncases = nrow(case) #57
-#ncontrol.set = nrow(control.set) # 163
-#caseUtils = matrix(0,nrow = ncontrol.set, ncol = ncases)
-#caseutils.df <- data.frame(caseUtils)
-#controlUtils = matrix(0,nrow = ncases, ncol = ncontrol.set)
-#controlutils.df <- data.frame(controlUtils)
-
-ncases <- nrow(mechprosthetic_group)
-ncontrol <- nrow(bioprosthetic_group)
-caseUtils <- matrix(0, nrow = ncontrol, ncol = ncases)
+ncases <- nrow(case) #795
+ncontrol.set <- nrow(control.set) # 2638
+caseUtils = matrix(0,nrow = ncontrol.set, ncol = ncases)
 caseUtils.df <- data.frame(caseUtils)
-controlUtils <- matrix (0, nrow = ncases, ncol = ncontrol)
+controlUtils = matrix(0,nrow = ncases, ncol = ncontrol.set)
 controlUtils.df <- data.frame(controlUtils)
 
+MAX_ALLOWED_AGE_DIFF <- 10
+AGE_WT <- 100
+SEX_WT <- 50
+RACE_WT <- 75
+CANCER_WT <- 5
+EMERGENT_WT <- 5
+
+DISQUAL <- -999
+QUAL <- 500
+QUAL_WT <- 1
+
+num_sex_male <- sum(control.set$sex == "male") #Finding number of males
+num_sex_female <- sum(control.set$sex == "female") #Finding number of females
+
+num_race_nonhis_white <- sum(control.set$race == "Non_Hispanic_White")
+num_race_nonhis_black <- sum(control.set$race == "Non_Hispanic_Black")
+num_race_his <- sum(control.set$race == "Hispanic")
+num_race_other <- sum(control.set$race == "Other")
+
+num_cancer <- sum(control.set$cancer == 1)
+num_no_cancer <- sum(control.set$cancer == 0)
+
+num_emergency <- sum(control.set$emergent_admission == 1)
+num_no_emergency <- sum(control.set$emergent_admission == 0)
+
+for (i in seq_len(nrow(case) ) ){ 
+  this.age <- case$age[i]
+  this.sex <- case$sex[i]
+  this.race <- case$race[i]
+  this.cancer <- case$cancer[i]
+  this.emergent_admission <- case$emergent_admission[i]
+  
+  #Calculating the score for age 
+  age_score <-  MAX_ALLOWED_AGE_DIFF - abs(control.set$age - this.age)  
+  df <- data.frame(age_score)
+  
+  if (this.sex == "male"){
+    sex_score <- ifelse (control.set$sex != this.sex, 0, 1/num_sex_male)
+  }else{   # this.status == "+"
+    sex_score <- ifelse (control.set$sex != this.sex, 0, 1/num_sex_female)
+  }
+  df$sex_score <- sex_score
+
+  if (this.race == "Non_Hispanic_White"){
+    race_score <- ifelse (control.set$race != this.race, 0, 1/num_race_nonhis_white)
+  }else if (this.race == "Non_Hispanic_Black"){   
+    race_score <- ifelse (control.set$race != this.race, 0, 1/num_race_nonhis_black)
+  }else if (this.race == "Hispanic"){   
+    race_score <- ifelse (control.set$race != this.race, 0, 1/num_race_his)
+  }else{
+    race_score <- ifelse (control.set$race != this.race, 0, 1/num_race_other)
+  }
+  df$race_score <- race_score
+  
+  if (this.cancer == 0){
+    cancer_score <- ifelse (control.set$cancer != this.cancer, 0, 1/num_no_cancer)
+  }else{  
+    cancer_score <- ifelse (control.set$cancer != this.sex, 0, 1/num_cancer)
+  }
+  df$cancer_score <- cancer_score
+  
+  if (this.emergent_admission == 0){
+    emergency_score <- ifelse (control.set$emergent_admission != this.cancer,
+                               0, 1/num_no_emergency)
+  }else{  
+    emergency_score <- ifelse (control.set$emergent_admission != this.sex, 0,
+                               1/num_emergency)
+  }
+  df$emergency_score <- emergency_score
+  
+  df$disqual <- ifelse(df$age_score < 0 | df$sex_score <= 0 | df$race_score < 0 | 
+                         df$cancer_score < 0 | df$emergency_score <0 , DISQUAL, 0.0 ) 
+  
+  num_possib_matches <- sum(df$disqual!= DISQUAL)
+  qualify <- QUAL / num_possib_matches
+  df$qualify <- rep(qualify, nrow(control.set)) 
+  
+  total_score <- AGE_WT*df$age_score + SEX_WT*df$sex_score + RACE_WT*df$race_score + 
+    CANCER_WT*df$cancer_score + EMERGENT_WT*df$emergency_score
+  
+  df$total_score <- ifelse(df$disqual<= DISQUAL, DISQUAL, total_score)
+  df$total_score <- df$total_score + QUAL_WT*df$qualify 
+  
+  # caseUtils ith column is for the total score for matching the two pairs
+  caseUtils.df[,i] <- df$total_score 
+  # controlutils ith row is for for the total score for matching the two pairs
+  controlUtils.df[i,] <- df$total_score 
+}
+
 results <- galeShapley.marriageMarket(caseUtils.df, controlUtils.df) 
-#results$proposals
-#results$engagements
+#results$proposals 
+
+#The following for loop will check if there is any person in the base group who has not been matched to any other person in the prospective suitors group
+for ( i in seq_len(ncases)){
+  print(controlUtils.df[i,results$proposals[i] ])
+} 
+
+new_mech <- mechprosthetic_group[results$proposals[1:600], ]
 
 #Now reducing the mechanicalprosthetics group and arrangung it accroding to matched pairs from 
 #bioprosthetics group
-new_mechprosthetics <- mechprosthetic_group[results$engagements, ]
-new_bioprosthetics <- bioprosthetic_group
-#nrow(new_bioprosthetics) == nrow(new_mechprosthetics)
+
+
+#Now we will check for the stability of the matching to ensure that the matched pairs are the only possible matchings.
+#galeShapley.checkStability(caseUtils, controlUtils, results$proposals, results$engagements)
 ```
 
-Now, we have 795 matching pairs in both mechprosthetics group and bioprsthetics group. Going ahead with these two groups of matching pairs:
+Now, we have 795 matching pairs in both mechprosthetics group and bioprsthetics group. Going ahead with these two groups of matching pairs and performng chi2 tests for categorical data and t-tests for continuous data:
+
+
+#t-test for age
+age_t.test <- t.test(new_bioprosthetics$age, new_mechprosthetics$age)
+##The p-value of 1.591e-06 for age variable in matched bio-prosthetics group and mechprosthetics group suggests that they are independent as the probability distribution of one variable is not affected by the presence of another.
+
+#chi2 test can only be applied on data sets of equal lengths
+race_chi <- chisq.test(table(new_bioprosthetics$race, new_mechprosthetics$race))
+## p-value = 0.03611 rejects the null hypothesis that these two features are dependent
+
+emergent_admission_chi <- chisq.test(table(new_bioprosthetics$emergent_admission,
+                                           new_mechprosthetics$emergent_admission))
+##  p-value = 0.9792 not enough evidence to reject the null hypothesis of the two results being independent
+
+concomitant_tricuspid_valve_repair_chi <-
+  chisq.test(table(new_bioprosthetics$concomitant_tricuspid_valve_repair,                                 new_mechprosthetics$concomitant_tricuspid_valve_repair))
+coagulation_chi <- chisq.test(table(new_bioprosthetics$coagulation,
+                                    new_mechprosthetics$coagulation))
+hypertension_chi <- chisq.test(table(new_bioprosthetics$hypertension,
+                                     new_mechprosthetics$hypertension))
+diabetes_mellitus_chi <- chisq.test(table(new_bioprosthetics$diabetes_mellitus,
+                                          new_mechprosthetics$diabetes_mellitus))
+sepsis_chi <-
+coronory_artery_chi <- chisq.test(table(new_bioprosthetics$sepsis, new_mechprosthetics$sepsis))
+atrial_fibrillation_chi <- chisq.test(table(new_bioprosthetics$atrial_fibrillation,
+                                            new_mechprosthetics$atrial_fibrillation))
+peripheral_vascular_chi <- chisq.test(table(new_bioprosthetics$peripheral_vascular_disease,
+                                            new_mechprosthetics$peripheral_vascular_disease))
+cerebro_vascular_chi <- chisq.test(table(new_bioprosthetics$cerebro_vascular_disease,
+                                         new_mechprosthetics$cerebro_vascular_disease))
+chronic_obstructive_pulmonary_chi <-
+  chisq.test(table(new_bioprosthetics$chronic_obstructive_pulmonary_disease,
+                   new_mechprosthetics$chronic_obstructive_pulmonary_disease))
+chronic_kidney_chi <- chisq.test(table(new_bioprosthetics$chronic_kidney_disease,
+                                       new_mechprosthetics$chronic_kidney_disease))
+liver_disease_chi <- chisq.test(table(new_bioprosthetics$liver_disease, 
+                                      new_mechprosthetics$liver_disease))
+cancer_chi <- chisq.test(table(new_bioprosthetics$cancer, new_mechprosthetics$cancer))
+
+#mcnemar.test(as.matrix(new_bioprosthetics$race), y = NULL)
+
+#new_model <- as.data.frame(sample(c(new_bioprosthetics, new_mechprosthetics), replace = FALSE))
+#coxph(group~., data = new_model)
+
+Now, we will generate the survival data 
 
 ```{r}
-
+#genSurvivalBioprosthetic <- function(number_matched){
+ # mortality <- 
+#}
 ```

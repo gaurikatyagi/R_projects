@@ -60,6 +60,7 @@ library(kimisc)
 <H3>Generate dataset for people who underwent Bioprosthetic Mitral Valve Replacement</H3>
 
 ```{r}
+set.seed(0)
 genBioProsthetic <- function(number){
   
   #Demographics
@@ -361,37 +362,43 @@ for ( i in seq_len(ncases)){
 #There are no unmatched pairs. This can also be seen from results$single.proposers
 #ncases determines the total number of matched pairs. This is the size of the bioprosthetic group. i.e 795
 
-#The paper selects 664 matches, we will reduce 795 matches to 664 because we have to add the death variable in the two datasets. (The paper does not actually give out the explicit matching criteria and we have developed our own criteria.) Selecting the first 664 matches.
-#new_bioprosthetics <- bioprosthetic_group[1:664,]
-#new_mechprosthetics <- mechprosthetic_group[results$proposals[1:664], ]
-x <- rep(0, ncases)
-
-for ( i in seq_len(ncases)){
-  #print(controlUtils.df[i,results$proposals[i]])
-  x[i]<- (controlUtils.df[,results$proposals])
-}
-length(x)
-x_mean <- mean(as.matrix(unlist(x)))
-x_max <- sapply(x, max)[1]
-range(x)
-l<-c()
-for ( i in seq_len(ncases)){
-  if(controlUtils.df[i,results$proposals[i]]>(998.15)){
-    l<-c(l,i)
-    
-}
-}
-length(l)
-#Now we have reduced the mechanicalprosthetics group and arranged it accroding to matched pairs from the bioprosthetics group
-
-
 #Now we will check for the stability of the matching to ensure that the matched pairs are the only possible matchings.
 print( paste("This pairing is stable:", galeShapley.checkStability(as.matrix(caseUtils.df), as.matrix(controlUtils.df), results$proposals, results$engagements)))
 
 #The TRUE shows that the achieved matching is a very stable matching that we have obtained: most optimal
+
+#The paper selects 664 matches, we will reduce 795 matches to 664 because we have to add the death variable in the two datasets. (The paper does not actually give out the explicit matching criteria and we have developed our own criteria.) Selecting the best 664 matches.
+dynamic_proposal_scores <- c()
+for ( i in seq_len(ncases)){
+  dynamic_proposal_scores<- c(dynamic_proposal_scores, 
+                              (controlUtils.df[i,results$proposals[i]]))
+}
+
+x_mean <- mean(as.matrix(dynamic_proposal_scores)) #998.4157
+x_max <- sapply(dynamic_proposal_scores, max)[1] #998.5341
+bio_indices<-c()
+#Now we know the scores for the best match and the mean match. We develop an algorithm to extract the  row numbers for the best 664 matches 
+for (i in seq_len(ncases)){
+  if(controlUtils.df[i,results$proposals[i]]> (x_max-0.795*(x_max- x_mean))){
+    bio_indices<-c(bio_indices,i)
+  }
+}
+#length(bio_indices) #664
+new_bioprosthetics <- bioprosthetic_group[bio_indices,]
+
+#We have the best 664 matches in new_bioprosthetics. Now, extracting the corresponding best matches from the mechprosthetics_group to a new data.frame
+
+#Extract the corresponding mechanical prosthetics from these bio_indices in the results$proposals variable
+mech_indices <- results$proposals[bio_indices]
+new_mechprosthetics <- mechprosthetic_group[mech_indices, ]
+#nrow(new_mechprosthetics) #664
+#nrow(new_bioprosthetics) #664
+
 ```
 
-Adding a column for death based on commordities
+We have reduced the mechanicalprosthetics group arranged accoroding to matched pairs from the bioprosthetics group. There are 664 observation in the matched datasets.
+
+Adding a column for death based on comorbidities and the groups they belong to.
 
 ```{r}
 genDeath <- function(data, group_factor, group_cut_off){
@@ -419,18 +426,17 @@ genDeath <- function(data, group_factor, group_cut_off){
 #Numbr of deaths in bio-prostetics was slighly more than those in mechanical prosthetics group. Accounting for those by giving a group factor and group cut off for the death deciding score in each iteration of generation of death value.
 
 death_mechprosthetics <- new_mechprosthetics
-death_mechprosthetics$death <- genDeath(death_mechprosthetics, 2.5, 6.6)
-length(which(death_mechprosthetics$death == 1)) # 208
+death_mechprosthetics$death <- genDeath(death_mechprosthetics, 2.15, 5.5)
+#length(which(death_mechprosthetics$death == 1)) # 196 death cases
 
 death_bioprosthetics <- new_bioprosthetics
-death_bioprosthetics$death <- genDeath(death_bioprosthetics, 1.11, 2.5)
-length(which(death_bioprosthetics$death == 1)) # 285
-
+death_bioprosthetics$death <- genDeath(death_bioprosthetics, 1.8, 4.1)
+#length(which(death_bioprosthetics$death == 1)) # 263 death cases
 ```
 
 Now, we have matched pairs of two different sets of people: those who underwent bioprosthetic valve replacement and those who underwent mechaniacl brosthetic valve replacement; both with a field for whether these people died.
 
-Now, we will go ahead and group these people in one single data.frame to apply survival analysis.
+Now, we will group these people in one single data.frame to apply survival analysis on this data, based on the groups they belong to.
 
 ```{r}
 final_data <- rbind(death_mechprosthetics, death_bioprosthetics)
@@ -465,7 +471,7 @@ final_data$SurvObj <- with(final_data, Surv(death))
 head(final_data)
 
 # Cox regression using coxph
-cox_regression_model <- coxph(death ~age + emergent_admission +        
+cox_regression_model <- coxph(SurvObj ~age + emergent_admission +        
         concomitant_tricuspid_valve_repair + coagulation + hypertension +
         diabetes_mellitus + sepsis + coronary_artery_disease +
         congestive_heart_failure + atrial_fibrillation + 

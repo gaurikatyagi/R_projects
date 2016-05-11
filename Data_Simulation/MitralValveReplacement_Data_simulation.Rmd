@@ -45,7 +45,11 @@ Install Libraries
 #install.packages("survival")
 #install.packages("matchingR")
 #install.packages("kimisc")
-
+#install.packages("useful")
+#install.packages("rpart")
+library(rpart)
+library(rpart.plot)
+library(useful)
 library(matchingR)
 library(ggplot2)
 library(survival)
@@ -374,6 +378,7 @@ l<-c()
 for ( i in seq_len(ncases)){
   if(controlUtils.df[i,results$proposals[i]]>(998.15)){
     l<-c(l,i)
+    
 }
 }
 length(l)
@@ -460,7 +465,7 @@ final_data$SurvObj <- with(final_data, Surv(death))
 head(final_data)
 
 # Cox regression using coxph
-cox_regression_model <- coxph(SurvObj ~age + emergent_admission +        
+cox_regression_model <- coxph(death ~age + emergent_admission +        
         concomitant_tricuspid_valve_repair + coagulation + hypertension +
         diabetes_mellitus + sepsis + coronary_artery_disease +
         congestive_heart_failure + atrial_fibrillation + 
@@ -472,4 +477,21 @@ print(cox_regression_model)
 ## Check for violation of proportional hazard (constant HR over time)
 resi <- cox.zph(cox_regression_model)
 
+```
+
+Fitting random forests on the basis of death
+
+```{r}
+
+death_tree <- rpart(death ~ age + emergent_admission +        
+                     concomitant_tricuspid_valve_repair + coagulation + hypertension +
+                     diabetes_mellitus + sepsis + coronary_artery_disease +
+                     congestive_heart_failure + atrial_fibrillation + 
+                     peripheral_vascular_disease + cerebro_vascular_disease +
+                     chronic_obstructive_pulmonary_disease + chronic_kidney_disease +
+                     liver_disease + cancer + group+ year, data=final_data)
+
+# extra=1: Display the number of observations that fall in the node
+rpart.plot(death_tree, extra = 1,  under = TRUE, clip.right.labs = FALSE, varlen = 0)
+ 
 ```

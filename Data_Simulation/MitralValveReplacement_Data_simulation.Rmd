@@ -345,7 +345,7 @@ results <- galeShapley.marriageMarket(caseUtils.df, controlUtils.df)
 check <- TRUE
 for ( i in seq_len(ncases)){
   
-  if(controlUtils.df[i,results$proposals[i] ] == 0){
+  if(controlUtils.df[i,results$proposals[i] ] <= 0){
     check <- FALSE
   }
   if (check == FALSE){
@@ -358,9 +358,25 @@ for ( i in seq_len(ncases)){
 #ncases determines the total number of matched pairs. This is the size of the bioprosthetic group. i.e 795
 
 #The paper selects 664 matches, we will reduce 795 matches to 664 because we have to add the death variable in the two datasets. (The paper does not actually give out the explicit matching criteria and we have developed our own criteria.) Selecting the first 664 matches.
-new_bioprosthetics <- bioprosthetic_group[1:664,]
-new_mechprosthetics <- mechprosthetic_group[results$proposals[1:664], ]
+#new_bioprosthetics <- bioprosthetic_group[1:664,]
+#new_mechprosthetics <- mechprosthetic_group[results$proposals[1:664], ]
+x <- rep(0, ncases)
 
+for ( i in seq_len(ncases)){
+  #print(controlUtils.df[i,results$proposals[i]])
+  x[i]<- (controlUtils.df[,results$proposals])
+}
+length(x)
+x_mean <- mean(as.matrix(unlist(x)))
+x_max <- sapply(x, max)[1]
+range(x)
+l<-c()
+for ( i in seq_len(ncases)){
+  if(controlUtils.df[i,results$proposals[i]]>(998.15)){
+    l<-c(l,i)
+}
+}
+length(l)
 #Now we have reduced the mechanicalprosthetics group and arranged it accroding to matched pairs from the bioprosthetics group
 
 
@@ -373,11 +389,11 @@ print( paste("This pairing is stable:", galeShapley.checkStability(as.matrix(cas
 Adding a column for death based on commordities
 
 ```{r}
-genDeath <- function(data){
-  has_cancer <- 2
-  has_congestive_heart_failure <- 1
+genDeath <- function(data, group_factor, group_cut_off){
+  has_cancer <- 2 * group_factor
+  has_congestive_heart_failure <- 1 * group_factor
   has_emergency <- 1
-  has_age_greater_60 <- 2
+  has_age_greater_60 <- 2 * group_factor
   score <- rep(x = 0, times = nrow(data) )
 
   data <- new_mechprosthetics
@@ -391,16 +407,19 @@ genDeath <- function(data){
                 ifelse(this.congestive_heart_failure == 1, has_congestive_heart_failure, 0) + 
                 ifelse(this.emergent_admission == 1, has_emergency, 0)
     }
-  data$death <- ifelse(score>=3, 1, 0)
+  data$death <- ifelse(score>group_cut_off, 1, 0)
   return(data$death)
 }
+
+#Numbr of deaths in bio-prostetics was slighly more than those in mechanical prosthetics group. Accounting for those by giving a group factor and group cut off for the death deciding score in each iteration of generation of death value.
+
 death_mechprosthetics <- new_mechprosthetics
-death_mechprosthetics$death <- genDeath(death_mechprosthetics)
-#length(which(death_mechprosthetics$death == 1)) # 279
+death_mechprosthetics$death <- genDeath(death_mechprosthetics, 2.5, 6.6)
+length(which(death_mechprosthetics$death == 1)) # 208
 
 death_bioprosthetics <- new_bioprosthetics
-death_bioprosthetics$death <- genDeath(death_bioprosthetics)
-#length(which(death_bioprosthetics$death == 1)) # 279
+death_bioprosthetics$death <- genDeath(death_bioprosthetics, 1.11, 2.5)
+length(which(death_bioprosthetics$death == 1)) # 285
 
 ```
 
@@ -412,41 +431,45 @@ Now, we will go ahead and group these people in one single data.frame to apply s
 final_data <- rbind(death_mechprosthetics, death_bioprosthetics)
 # We will now randomly disperse these rows in the data frae. There is no requirement to do so but it just looks more like an original data frame if we do that.
 observations <- nrow(final_data)
-grouped_data <- sample.rows(final_data, observations, replace=FALSE)
+#grouped_data <- sample.rows(final_data, observations, replace=FALSE)
 ```
 
 "grouped_data" data.frame now holds our final data frame on whch we will apply survival analysis.
 
 ```{r}
-survdiff(Surv(death) ~ group, data = grouped_data)
+survdiff(Surv(death) ~ group, data = final_data)
 #survival_model <- survfit(Surv(death)~1, data = grouped_data)
 #summary(survival_model)
 #plot(survival_model, xlab="Deaths", ylab="Survival Probability")
 
-survival_model_groups <- survfit(Surv(death)~group, data = grouped_data)
+survival_model_groups <- survfit(Surv(death)~group, data = final_data)
 summary(survival_model_groups)
 
-survdiff(Surv(death) ~ year, data = grouped_data)
-survival_model_years <- survfit(Surv(death)~year, data = grouped_data)
+survdiff(Surv(death) ~ year, data = final_data)
+survival_model_years <- survfit(Surv(death)~year, data = final_data)
 summary(survival_model_years)
 
-survdiff(Surv(death) ~ year+group, data = grouped_data)
-survival_model <- survfit(Surv(death)~year+group, data = grouped_data)
+survdiff(Surv(death) ~ year+group, data = final_data)
+survival_model <- survfit(Surv(death)~year+group, data = final_data)
 summary(survival_model)
 ```
 
 ```{r}
 #create survival object
-grouped_data$SurvObj <- with(grouped_data, Surv(death))
-head(grouped_data)
+final_data$SurvObj <- with(final_data, Surv(death))
+head(final_data)
 
 # Cox regression using coxph
-coxph(SurvObj ~age + emergent_admission +        
+cox_regression_model <- coxph(SurvObj ~age + emergent_admission +        
         concomitant_tricuspid_valve_repair + coagulation + hypertension +
         diabetes_mellitus + sepsis + coronary_artery_disease +
         congestive_heart_failure + atrial_fibrillation + 
         peripheral_vascular_disease + cerebro_vascular_disease +
         chronic_obstructive_pulmonary_disease + chronic_kidney_disease +
-                               liver_disease + cancer + group, data =  grouped_data)
+                               liver_disease + cancer + group, data =  final_data)
+print(cox_regression_model)
+
+## Check for violation of proportional hazard (constant HR over time)
+resi <- cox.zph(cox_regression_model)
 
 ```

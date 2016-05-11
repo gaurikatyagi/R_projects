@@ -41,7 +41,7 @@ The aim of the study is to quantify the survival and morbidity after valve repla
 Install Libraries
 
 ```{r}
-#install.packages("ggplot2")
+install.packages("ggplot2")
 #install.packages("survival")
 #install.packages("matchingR")
 #install.packages("kimisc")
@@ -53,7 +53,6 @@ library(useful)
 library(matchingR)
 library(ggplot2)
 library(survival)
-library(dplyr)
 library(kimisc)
 ```
 
@@ -435,6 +434,39 @@ death_bioprosthetics$death <- genDeath(death_bioprosthetics, 1.8, 4.1)
 ```
 
 Now, we have matched pairs of two different sets of people: those who underwent bioprosthetic valve replacement and those who underwent mechaniacl brosthetic valve replacement; both with a field for whether these people died.
+
+<H2> Simulated Data Exploration </H2>
+
+```{r}
+
+ggplot(data = death_bioprosthetics, 
+            aes(x = age, y = as.factor(diabetes_mellitus), color = as.factor(death))) + 
+  geom_point() + 
+  labs(x="Age (in years)", y="Presence of diabetes", title="Diabetes as a function of age: \nGrouped by death cases") + 
+  theme(plot.title = element_text(size=20, face="bold", vjust=1, lineheight=0.6), 
+        legend.title = element_text(colour="forestgreen", size=16, face="bold"), 
+        axis.title.x = element_text(color="forestgreen", vjust=-0.35),
+      axis.title.y = element_text(color="forestgreen" , vjust=0.35))+
+  scale_color_discrete(name="Death") 
+
+
+ggplot(data = death_bioprosthetics,
+       aes(x = sex, y = age))+
+  geom_point(color="aquamarine4")+facet_wrap(~race, nrow=1)+ 
+  labs(x="Sex ", y="Age", title="Age as a function of sex: \nSplit by race")
+
+ggplot(data = death_bioprosthetics, aes(age,as.factor(cancer), color = as.factor(death)))+
+  geom_point()+
+    facet_grid(year~race)+ 
+  labs(x="Age ", y="Cancer", title="Cancer as a function of Age: \nSplit by year and race") + theme(plot.title = element_text(size=20, face="bold", vjust=1, lineheight=0.6), 
+        legend.title = element_text(colour="forestgreen", size=10, face="bold"), 
+        axis.title.x = element_text(color="forestgreen", vjust=-0.35),
+      axis.title.y = element_text(color="forestgreen" , vjust=0.35))+
+  scale_color_discrete(name="Death") 
+
+
+```
+
 
 Now, we will group these people in one single data.frame to apply survival analysis on this data, based on the groups they belong to.
 

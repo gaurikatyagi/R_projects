@@ -807,24 +807,17 @@ Data Analysis
 </H2>
 <p>Now, we will group these people in one single data.frame to apply survival analysis on this data, based on the groups they belong to.</p>
 <pre class="r"><code>final_data &lt;- rbind(death_mechprosthetics, death_bioprosthetics)
-# We will now randomly disperse these rows in the data frae. There is no requirement to do so but it just looks more like an original data frame if we do that.
 observations &lt;- nrow(final_data)
-#grouped_data &lt;- sample.rows(final_data, observations, replace=FALSE)</code></pre>
-<p>“grouped_data” data.frame now holds our final data frame on whch we will apply survival analysis.</p>
-<pre class="r"><code>survdiff(Surv(death) ~ group, data = final_data)</code></pre>
-<pre><code>## Call:
-## survdiff(formula = Surv(death) ~ group, data = final_data)
-## 
-##                    N Observed Expected (O-E)^2/E (O-E)^2/V
-## group=mechanical 664      664      630      1.78      14.9
-## group=bio        664      664      698      1.61      14.9
-## 
-##  Chisq= 14.9  on 1 degrees of freedom, p= 0.000111</code></pre>
-<pre class="r"><code>#survival_model &lt;- survfit(Surv(death)~1, data = grouped_data)
-#summary(survival_model)
-#plot(survival_model, xlab=&quot;Deaths&quot;, ylab=&quot;Survival Probability&quot;)
 
-survival_model_groups &lt;- survfit(Surv(death)~group, data = final_data)
+# We could now randomly disperse these rows in the data frae. There is no requirement to do so but it just looks more like an original data frame if we do that. NOTE:it removes the paired matching
+#grouped_data &lt;- sample.rows(final_data, observations, replace=FALSE)</code></pre>
+<p>“final_data” data.frame now holds our final data frame on whch we will apply survival analysis.</p>
+<H4>
+Survival Analysis
+</H4>
+<p>Classically, Survival Analysis is the analysis of time to death. It is composed of: 1. The underlying Hazard function (How the risk of death per unit time changes over time at baseline covariates) 2. The effect parameters (How the hazard varies in response to the covariates)</p>
+<p><B>Estimating survival based on only the groups data belongs to</B></p>
+<pre class="r"><code>survival_model_groups &lt;- survfit(Surv(death)~group, data = final_data)
 summary(survival_model_groups)</code></pre>
 <pre><code>## Call: survfit(formula = Surv(death) ~ group, data = final_data)
 ## 
@@ -837,25 +830,10 @@ summary(survival_model_groups)</code></pre>
 ##  time n.risk n.event survival std.err lower 95% CI upper 95% CI
 ##     0    664     401    0.396   0.019        0.361        0.435
 ##     1    263     263    0.000     NaN           NA           NA</code></pre>
-<pre class="r"><code>survdiff(Surv(death) ~ year, data = final_data)</code></pre>
-<pre><code>## Call:
-## survdiff(formula = Surv(death) ~ year, data = final_data)
-## 
-##             N Observed Expected (O-E)^2/E (O-E)^2/V
-## year=1997  83       83     71.3  1.915480   7.75587
-## year=1998 113      113    109.9  0.084971   0.39923
-## year=1999 104      104    105.1  0.010579   0.05122
-## year=2000  86       86     86.3  0.000880   0.00417
-## year=2001 126      126    125.5  0.002409   0.01171
-## year=2002 120      120    114.5  0.261827   1.21366
-## year=2003 126      126    128.5  0.046742   0.23259
-## year=2004 136      136    144.0  0.443794   2.31284
-## year=2005 138      138    138.3  0.000663   0.00327
-## year=2006 145      145    149.9  0.159100   0.81565
-## year=2007 151      151    154.8  0.093742   0.47909
-## 
-##  Chisq= 12.2  on 10 degrees of freedom, p= 0.269</code></pre>
-<pre class="r"><code>survival_model_years &lt;- survfit(Surv(death)~year, data = final_data)
+<pre class="r"><code>#This shows that the possibility of survival of people who had not died. The people who underwent mechanical prosthetic replacement and were still alive after the surgery have a 29.5% chance of survival. However, the people who had undergone the bioprosthetic replacement had a 39.6% chance of survival.
+
+#survdiff(Surv(death) ~ year, data = final_data)
+survival_model_years &lt;- survfit(Surv(death)~year, data = final_data)
 summary(survival_model_years)</code></pre>
 <pre><code>## Call: survfit(formula = Surv(death) ~ year, data = final_data)
 ## 
@@ -913,36 +891,10 @@ summary(survival_model_years)</code></pre>
 ##  time n.risk n.event survival std.err lower 95% CI upper 95% CI
 ##     0    151      95    0.371  0.0393        0.301        0.456
 ##     1     56      56    0.000     NaN           NA           NA</code></pre>
-<pre class="r"><code>survdiff(Surv(death) ~ year+group, data = final_data)</code></pre>
-<pre><code>## Call:
-## survdiff(formula = Surv(death) ~ year + group, data = final_data)
-## 
-##                               N Observed Expected (O-E)^2/E (O-E)^2/V
-## year=1997, group=mechanical  63       63     52.2  2.223017   8.54724
-## year=1997, group=bio         20       20     19.1  0.043638   0.18681
-## year=1998, group=mechanical  88       88     81.6  0.504518   2.21316
-## year=1998, group=bio         25       25     28.4  0.397901   2.03244
-## year=1999, group=mechanical  73       73     72.8  0.000734   0.00342
-## year=1999, group=bio         31       31     32.3  0.051176   0.24110
-## year=2000, group=mechanical  58       58     57.0  0.019236   0.08726
-## year=2000, group=bio         28       28     29.3  0.059629   0.28183
-## year=2001, group=mechanical  70       70     67.8  0.071010   0.32080
-## year=2001, group=bio         56       56     57.6  0.046919   0.22278
-## year=2002, group=mechanical  66       66     58.2  1.048724   4.29861
-## year=2002, group=bio         54       54     56.3  0.096851   0.46533
-## year=2003, group=mechanical  63       63     64.2  0.023371   0.11051
-## year=2003, group=bio         63       63     64.2  0.023371   0.11051
-## year=2004, group=mechanical  51       51     50.4  0.007811   0.03545
-## year=2004, group=bio         85       85     93.6  0.793898   4.12747
-## year=2005, group=mechanical  49       49     47.1  0.079638   0.35089
-## year=2005, group=bio         89       89     91.2  0.054931   0.26667
-## year=2006, group=mechanical  43       43     41.1  0.084297   0.36823
-## year=2006, group=bio        102      102    108.7  0.418422   2.13486
-## year=2007, group=mechanical  40       40     38.2  0.087276   0.37943
-## year=2007, group=bio        111      111    116.6  0.272225   1.37904
-## 
-##  Chisq= 26.7  on 21 degrees of freedom, p= 0.181</code></pre>
-<pre class="r"><code>survival_model &lt;- survfit(Surv(death)~year+group, data = final_data)
+<pre class="r"><code>#Based on the year in which people had their surgery, people who are alive had a similar chance of survival. (Except for those who underwent surgery in 2007)
+
+#survdiff(Surv(death) ~ year+group, data = final_data)
+survival_model &lt;- survfit(Surv(death)~year+group, data = final_data)
 summary(survival_model)</code></pre>
 <pre><code>## Call: survfit(formula = Surv(death) ~ year + group, data = final_data)
 ## 
@@ -1055,66 +1007,22 @@ summary(survival_model)</code></pre>
 ##  time n.risk n.event survival std.err lower 95% CI upper 95% CI
 ##     0    111      67    0.396  0.0464        0.315        0.499
 ##     1     44      44    0.000     NaN           NA           NA</code></pre>
+<pre class="r"><code>#It can be seen that when we dive further into the survival chances based on the type of surgery and the year in which they undwent the surgery, both grous showed a similar chance of death; apart from the years: 1997, 1998, 2002, 2004 and 2006, where the mechanical group displayed a higher chance of survival.</code></pre>
+<p><B>Cox Regression model</B></p>
+<p>The cox regression model based on proportions is the most common model used to determine the effects of covariates on survival. It is a semi-parametric model as: <em>The baseline hazard function is unspecified </em>The effects of the covariates are multiplicative *Doesn’t make arbitrary assumptions about the shape/form of the baseline hazard function</p>
+<p>coxph is used for analysis when we have paired data. Cox Model is used for analysis of Survival data and finding out relationship between Survival and covariates (also called explanatory variables or predictors) .</p>
+<p>One of the key assumptions in Cox Regression is that the proportional hazards does not depend on the covariates. This we have verified in the analysis below.</p>
 <pre class="r"><code>#create survival object
 final_data$SurvObj &lt;- with(final_data, Surv(death))
-head(final_data)</code></pre>
-<pre><code>##           age    sex               race emergent_admission
-## 2377 68.66829 female Non_Hispanic_White                  1
-## 558  59.27359   male Non_Hispanic_White                  0
-## 1582 69.03977 female              Other                  1
-## 2139 68.70316 female Non_Hispanic_White                  0
-## 1328 63.64724   male              Other                  1
-## 1600 52.11321   male Non_Hispanic_White                  0
-##      concomitant_tricuspid_valve_repair coagulation hypertension
-## 2377                                  0           0            1
-## 558                                   0           0            1
-## 1582                                  0           0            1
-## 2139                                  0           0            1
-## 1328                                  0           0            1
-## 1600                                  0           0            0
-##      diabetes_mellitus sepsis coronary_artery_disease
-## 2377                 0      0                    None
-## 558                  0      0                    None
-## 1582                 0      0                    None
-## 2139                 0      0                    None
-## 1328                 0      0                    None
-## 1600                 0      0                    None
-##      congestive_heart_failure atrial_fibrillation
-## 2377                        0                   0
-## 558                         1                   0
-## 1582                        1                   0
-## 2139                        1                   1
-## 1328                        0                   0
-## 1600                        0                   1
-##      peripheral_vascular_disease cerebro_vascular_disease
-## 2377                           0                        1
-## 558                            0                        0
-## 1582                           0                        0
-## 2139                           0                        0
-## 1328                           0                        0
-## 1600                           0                        1
-##      chronic_obstructive_pulmonary_disease chronic_kidney_disease
-## 2377                                     0                      0
-## 558                                      0                      0
-## 1582                                     0                      0
-## 2139                                     0                      0
-## 1328                                     0                      1
-## 1600                                     0                      1
-##      liver_disease cancer year      group death SurvObj
-## 2377             0      0 2002 mechanical     0      0 
-## 558              0      0 1997 mechanical     0      0 
-## 1582             0      0 2001 mechanical     1      1 
-## 2139             0      0 2006 mechanical     1      1 
-## 1328             0      0 1997 mechanical     0      0 
-## 1600             0      0 2000 mechanical     0      0</code></pre>
-<pre class="r"><code># Cox regression using coxph
+
+# Cox regression using coxph
 cox_regression_model &lt;- coxph(SurvObj ~age + emergent_admission +        
         concomitant_tricuspid_valve_repair + coagulation + hypertension +
         diabetes_mellitus + sepsis + coronary_artery_disease +
         congestive_heart_failure + atrial_fibrillation + 
         peripheral_vascular_disease + cerebro_vascular_disease +
         chronic_obstructive_pulmonary_disease + chronic_kidney_disease +
-                               liver_disease + cancer + group, data =  final_data)
+                               liver_disease + cancer + group + strata(year), data =  final_data)
 print(cox_regression_model)</code></pre>
 <pre><code>## Call:
 ## coxph(formula = SurvObj ~ age + emergent_admission + concomitant_tricuspid_valve_repair + 
@@ -1122,75 +1030,268 @@ print(cox_regression_model)</code></pre>
 ##     coronary_artery_disease + congestive_heart_failure + atrial_fibrillation + 
 ##     peripheral_vascular_disease + cerebro_vascular_disease + 
 ##     chronic_obstructive_pulmonary_disease + chronic_kidney_disease + 
-##     liver_disease + cancer + group, data = final_data)
+##     liver_disease + cancer + group + strata(year), data = final_data)
 ## 
 ##                                                            coef exp(coef)
-## age                                                    -0.10060   0.90429
-## emergent_admission                                      0.09630   1.10109
-## concomitant_tricuspid_valve_repair                     -0.13755   0.87149
-## coagulation                                             0.01050   1.01056
-## hypertension                                           -0.09364   0.91061
-## diabetes_mellitus                                       0.08065   1.08399
-## sepsis                                                  0.19019   1.20948
-## coronary_artery_diseasePrior_CABG_Surgery               0.10296   1.10844
-## coronary_artery_diseasePrior_PCI                        0.26083   1.29801
-## coronary_artery_diseaseWithout_Prior_Revascularization  0.06236   1.06435
-## congestive_heart_failure                               -0.54054   0.58243
-## atrial_fibrillation                                    -0.01033   0.98972
-## peripheral_vascular_disease                            -0.13615   0.87272
-## cerebro_vascular_disease                                0.08753   1.09148
-## chronic_obstructive_pulmonary_disease                  -0.03120   0.96928
-## chronic_kidney_disease                                 -0.00759   0.99244
-## liver_disease                                           0.06973   1.07222
-## cancer                                                 -0.43553   0.64692
-## groupbio                                               -0.28569   0.75149
+## age                                                    -0.10028   0.90458
+## emergent_admission                                      0.09782   1.10277
+## concomitant_tricuspid_valve_repair                     -0.14397   0.86591
+## coagulation                                             0.01473   1.01484
+## hypertension                                           -0.09989   0.90493
+## diabetes_mellitus                                       0.08395   1.08757
+## sepsis                                                  0.19410   1.21422
+## coronary_artery_diseasePrior_CABG_Surgery               0.09075   1.09500
+## coronary_artery_diseasePrior_PCI                        0.25082   1.28508
+## coronary_artery_diseaseWithout_Prior_Revascularization  0.06227   1.06425
+## congestive_heart_failure                               -0.53333   0.58665
+## atrial_fibrillation                                    -0.01634   0.98379
+## peripheral_vascular_disease                            -0.14789   0.86252
+## cerebro_vascular_disease                                0.08778   1.09175
+## chronic_obstructive_pulmonary_disease                  -0.02793   0.97246
+## chronic_kidney_disease                                 -0.00939   0.99065
+## liver_disease                                           0.05539   1.05695
+## cancer                                                 -0.41973   0.65722
+## groupbio                                               -0.26939   0.76385
 ##                                                        se(coef)      z
-## age                                                     0.00628 -16.01
-## emergent_admission                                      0.05641   1.71
-## concomitant_tricuspid_valve_repair                      0.13274  -1.04
-## coagulation                                             0.11058   0.09
-## hypertension                                            0.05596  -1.67
-## diabetes_mellitus                                       0.06879   1.17
-## sepsis                                                  0.16221   1.17
-## coronary_artery_diseasePrior_CABG_Surgery               0.11911   0.86
-## coronary_artery_diseasePrior_PCI                        0.17244   1.51
-## coronary_artery_diseaseWithout_Prior_Revascularization  0.06427   0.97
-## congestive_heart_failure                                0.05892  -9.17
-## atrial_fibrillation                                     0.05575  -0.19
-## peripheral_vascular_disease                             0.14726  -0.92
-## cerebro_vascular_disease                                0.09844   0.89
-## chronic_obstructive_pulmonary_disease                   0.06858  -0.45
-## chronic_kidney_disease                                  0.09524  -0.08
-## liver_disease                                           0.12845   0.54
-## cancer                                                  0.16293  -2.67
-## groupbio                                                0.05939  -4.81
+## age                                                     0.00634 -15.82
+## emergent_admission                                      0.05680   1.72
+## concomitant_tricuspid_valve_repair                      0.13337  -1.08
+## coagulation                                             0.11146   0.13
+## hypertension                                            0.05627  -1.78
+## diabetes_mellitus                                       0.06927   1.21
+## sepsis                                                  0.16334   1.19
+## coronary_artery_diseasePrior_CABG_Surgery               0.12071   0.75
+## coronary_artery_diseasePrior_PCI                        0.17362   1.44
+## coronary_artery_diseaseWithout_Prior_Revascularization  0.06481   0.96
+## congestive_heart_failure                                0.05930  -8.99
+## atrial_fibrillation                                     0.05608  -0.29
+## peripheral_vascular_disease                             0.14865  -0.99
+## cerebro_vascular_disease                                0.09897   0.89
+## chronic_obstructive_pulmonary_disease                   0.06924  -0.40
+## chronic_kidney_disease                                  0.09601  -0.10
+## liver_disease                                           0.12943   0.43
+## cancer                                                  0.16347  -2.57
+## groupbio                                                0.06270  -4.30
 ##                                                              p
 ## age                                                    &lt; 2e-16
-## emergent_admission                                      0.0878
-## concomitant_tricuspid_valve_repair                      0.3001
-## coagulation                                             0.9243
-## hypertension                                            0.0943
-## diabetes_mellitus                                       0.2410
-## sepsis                                                  0.2410
-## coronary_artery_diseasePrior_CABG_Surgery               0.3874
-## coronary_artery_diseasePrior_PCI                        0.1304
-## coronary_artery_diseaseWithout_Prior_Revascularization  0.3319
+## emergent_admission                                       0.085
+## concomitant_tricuspid_valve_repair                       0.280
+## coagulation                                              0.895
+## hypertension                                             0.076
+## diabetes_mellitus                                        0.226
+## sepsis                                                   0.235
+## coronary_artery_diseasePrior_CABG_Surgery                0.452
+## coronary_artery_diseasePrior_PCI                         0.149
+## coronary_artery_diseaseWithout_Prior_Revascularization   0.337
 ## congestive_heart_failure                               &lt; 2e-16
-## atrial_fibrillation                                     0.8530
-## peripheral_vascular_disease                             0.3552
-## cerebro_vascular_disease                                0.3739
-## chronic_obstructive_pulmonary_disease                   0.6492
-## chronic_kidney_disease                                  0.9365
-## liver_disease                                           0.5872
-## cancer                                                  0.0075
-## groupbio                                               1.5e-06
+## atrial_fibrillation                                      0.771
+## peripheral_vascular_disease                              0.320
+## cerebro_vascular_disease                                 0.375
+## chronic_obstructive_pulmonary_disease                    0.687
+## chronic_kidney_disease                                   0.922
+## liver_disease                                            0.669
+## cancer                                                   0.010
+## groupbio                                               1.7e-05
 ## 
-## Likelihood ratio test=376  on 19 df, p=0
+## Likelihood ratio test=365  on 19 df, p=0
 ## n= 1328, number of events= 1328</code></pre>
 <pre class="r"><code>## Check for violation of proportional hazard (constant HR over time)
-resi &lt;- cox.zph(cox_regression_model)</code></pre>
+resi &lt;- cox.zph(cox_regression_model)
+print(resi)</code></pre>
+<pre><code>##                                                             rho   chisq
+## age                                                     0.16336 36.4887
+## emergent_admission                                     -0.01373  0.2539
+## concomitant_tricuspid_valve_repair                     -0.00450  0.0276
+## coagulation                                             0.00813  0.0886
+## hypertension                                            0.01048  0.1504
+## diabetes_mellitus                                      -0.01297  0.2272
+## sepsis                                                 -0.00912  0.1108
+## coronary_artery_diseasePrior_CABG_Surgery              -0.00666  0.0596
+## coronary_artery_diseasePrior_PCI                       -0.00329  0.0147
+## coronary_artery_diseaseWithout_Prior_Revascularization -0.00518  0.0363
+## congestive_heart_failure                                0.09437 13.3382
+## atrial_fibrillation                                    -0.00221  0.0066
+## peripheral_vascular_disease                             0.00610  0.0511
+## cerebro_vascular_disease                               -0.00325  0.0140
+## chronic_obstructive_pulmonary_disease                  -0.01185  0.1932
+## chronic_kidney_disease                                 -0.00460  0.0285
+## liver_disease                                           0.00941  0.1195
+## cancer                                                  0.03463  1.6281
+## groupbio                                                0.01778  0.4759
+## GLOBAL                                                       NA 55.6084
+##                                                               p
+## age                                                    1.54e-09
+## emergent_admission                                     6.14e-01
+## concomitant_tricuspid_valve_repair                     8.68e-01
+## coagulation                                            7.66e-01
+## hypertension                                           6.98e-01
+## diabetes_mellitus                                      6.34e-01
+## sepsis                                                 7.39e-01
+## coronary_artery_diseasePrior_CABG_Surgery              8.07e-01
+## coronary_artery_diseasePrior_PCI                       9.03e-01
+## coronary_artery_diseaseWithout_Prior_Revascularization 8.49e-01
+## congestive_heart_failure                               2.60e-04
+## atrial_fibrillation                                    9.35e-01
+## peripheral_vascular_disease                            8.21e-01
+## cerebro_vascular_disease                               9.06e-01
+## chronic_obstructive_pulmonary_disease                  6.60e-01
+## chronic_kidney_disease                                 8.66e-01
+## liver_disease                                          7.30e-01
+## cancer                                                 2.02e-01
+## groupbio                                               4.90e-01
+## GLOBAL                                                 1.87e-05</code></pre>
+<pre class="r"><code>#Since the rho is almost the same over all the variables, there is no violation of propotional hazards.</code></pre>
+<p>*From the coxph model set we can see that the beta coefficients of most variables except group, cancer and congestive heart failure are close to zero (half positive and half negative).</p>
+<p>*The Z-scores of the cox model are known as he Wald statistics and are calculated by dividing beta with its corresponding standard error. It is assumed as asymptotically standard normal under the hypothesis that the corresonding beta is zero.</p>
+<p>*The p-value corresponds to the z-statistics. If the p-value is lower than 5% then the null hypothesis of beta=0 can be rejected with a 95% confidence interval.</p>
+<p><em>Conclusion</em> In our analysis we can see that for almost all predictors, we do not have enough evidence to reject the null hypothesis that beta=0 (except group, conjestive heart failure, cancer and age)</p>
+<pre class="r"><code>print(summary(cox_regression_model))</code></pre>
+<pre><code>## Call:
+## coxph(formula = SurvObj ~ age + emergent_admission + concomitant_tricuspid_valve_repair + 
+##     coagulation + hypertension + diabetes_mellitus + sepsis + 
+##     coronary_artery_disease + congestive_heart_failure + atrial_fibrillation + 
+##     peripheral_vascular_disease + cerebro_vascular_disease + 
+##     chronic_obstructive_pulmonary_disease + chronic_kidney_disease + 
+##     liver_disease + cancer + group + strata(year), data = final_data)
+## 
+##   n= 1328, number of events= 1328 
+## 
+##                                                             coef exp(coef)
+## age                                                    -0.100281  0.904583
+## emergent_admission                                      0.097825  1.102770
+## concomitant_tricuspid_valve_repair                     -0.143971  0.865913
+## coagulation                                             0.014730  1.014839
+## hypertension                                           -0.099894  0.904933
+## diabetes_mellitus                                       0.083950  1.087574
+## sepsis                                                  0.194105  1.214223
+## coronary_artery_diseasePrior_CABG_Surgery               0.090750  1.094995
+## coronary_artery_diseasePrior_PCI                        0.250821  1.285079
+## coronary_artery_diseaseWithout_Prior_Revascularization  0.062266  1.064246
+## congestive_heart_failure                               -0.533329  0.586649
+## atrial_fibrillation                                    -0.016345  0.983788
+## peripheral_vascular_disease                            -0.147894  0.862522
+## cerebro_vascular_disease                                0.087778  1.091746
+## chronic_obstructive_pulmonary_disease                  -0.027930  0.972456
+## chronic_kidney_disease                                 -0.009393  0.990651
+## liver_disease                                           0.055386  1.056949
+## cancer                                                 -0.419734  0.657221
+## groupbio                                               -0.269385  0.763849
+##                                                         se(coef)       z
+## age                                                     0.006341 -15.815
+## emergent_admission                                      0.056802   1.722
+## concomitant_tricuspid_valve_repair                      0.133371  -1.079
+## coagulation                                             0.111460   0.132
+## hypertension                                            0.056273  -1.775
+## diabetes_mellitus                                       0.069273   1.212
+## sepsis                                                  0.163336   1.188
+## coronary_artery_diseasePrior_CABG_Surgery               0.120708   0.752
+## coronary_artery_diseasePrior_PCI                        0.173624   1.445
+## coronary_artery_diseaseWithout_Prior_Revascularization  0.064813   0.961
+## congestive_heart_failure                                0.059302  -8.993
+## atrial_fibrillation                                     0.056082  -0.291
+## peripheral_vascular_disease                             0.148648  -0.995
+## cerebro_vascular_disease                                0.098974   0.887
+## chronic_obstructive_pulmonary_disease                   0.069239  -0.403
+## chronic_kidney_disease                                  0.096013  -0.098
+## liver_disease                                           0.129428   0.428
+## cancer                                                  0.163469  -2.568
+## groupbio                                                0.062698  -4.297
+##                                                        Pr(&gt;|z|)    
+## age                                                     &lt; 2e-16 ***
+## emergent_admission                                       0.0850 .  
+## concomitant_tricuspid_valve_repair                       0.2804    
+## coagulation                                              0.8949    
+## hypertension                                             0.0759 .  
+## diabetes_mellitus                                        0.2256    
+## sepsis                                                   0.2347    
+## coronary_artery_diseasePrior_CABG_Surgery                0.4522    
+## coronary_artery_diseasePrior_PCI                         0.1486    
+## coronary_artery_diseaseWithout_Prior_Revascularization   0.3367    
+## congestive_heart_failure                                &lt; 2e-16 ***
+## atrial_fibrillation                                      0.7707    
+## peripheral_vascular_disease                              0.3198    
+## cerebro_vascular_disease                                 0.3751    
+## chronic_obstructive_pulmonary_disease                    0.6867    
+## chronic_kidney_disease                                   0.9221    
+## liver_disease                                            0.6687    
+## cancer                                                   0.0102 *  
+## groupbio                                               1.73e-05 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+##                                                        exp(coef)
+## age                                                       0.9046
+## emergent_admission                                        1.1028
+## concomitant_tricuspid_valve_repair                        0.8659
+## coagulation                                               1.0148
+## hypertension                                              0.9049
+## diabetes_mellitus                                         1.0876
+## sepsis                                                    1.2142
+## coronary_artery_diseasePrior_CABG_Surgery                 1.0950
+## coronary_artery_diseasePrior_PCI                          1.2851
+## coronary_artery_diseaseWithout_Prior_Revascularization    1.0642
+## congestive_heart_failure                                  0.5866
+## atrial_fibrillation                                       0.9838
+## peripheral_vascular_disease                               0.8625
+## cerebro_vascular_disease                                  1.0917
+## chronic_obstructive_pulmonary_disease                     0.9725
+## chronic_kidney_disease                                    0.9907
+## liver_disease                                             1.0569
+## cancer                                                    0.6572
+## groupbio                                                  0.7638
+##                                                        exp(-coef)
+## age                                                        1.1055
+## emergent_admission                                         0.9068
+## concomitant_tricuspid_valve_repair                         1.1549
+## coagulation                                                0.9854
+## hypertension                                               1.1051
+## diabetes_mellitus                                          0.9195
+## sepsis                                                     0.8236
+## coronary_artery_diseasePrior_CABG_Surgery                  0.9132
+## coronary_artery_diseasePrior_PCI                           0.7782
+## coronary_artery_diseaseWithout_Prior_Revascularization     0.9396
+## congestive_heart_failure                                   1.7046
+## atrial_fibrillation                                        1.0165
+## peripheral_vascular_disease                                1.1594
+## cerebro_vascular_disease                                   0.9160
+## chronic_obstructive_pulmonary_disease                      1.0283
+## chronic_kidney_disease                                     1.0094
+## liver_disease                                              0.9461
+## cancer                                                     1.5216
+## groupbio                                                   1.3092
+##                                                        lower .95 upper .95
+## age                                                       0.8934    0.9159
+## emergent_admission                                        0.9866    1.2326
+## concomitant_tricuspid_valve_repair                        0.6667    1.1246
+## coagulation                                               0.8157    1.2626
+## hypertension                                              0.8104    1.0105
+## diabetes_mellitus                                         0.9495    1.2457
+## sepsis                                                    0.8816    1.6724
+## coronary_artery_diseasePrior_CABG_Surgery                 0.8643    1.3873
+## coronary_artery_diseasePrior_PCI                          0.9144    1.8060
+## coronary_artery_diseaseWithout_Prior_Revascularization    0.9373    1.2084
+## congestive_heart_failure                                  0.5223    0.6590
+## atrial_fibrillation                                       0.8814    1.0981
+## peripheral_vascular_disease                               0.6445    1.1543
+## cerebro_vascular_disease                                  0.8992    1.3255
+## chronic_obstructive_pulmonary_disease                     0.8491    1.1138
+## chronic_kidney_disease                                    0.8207    1.1958
+## liver_disease                                             0.8201    1.3621
+## cancer                                                    0.4771    0.9054
+## groupbio                                                  0.6755    0.8637
+## 
+## Concordance= 0.881  (se = 0.095 )
+## Rsquare= 0.24   (max possible= 1 )
+## Likelihood ratio test= 365.3  on 19 df,   p=0
+## Wald test            = 371.4  on 19 df,   p=0
+## Score (logrank) test = 375.9  on 19 df,   p=0</code></pre>
+<p>Concordance tells how well 0’s are separated from 1’s in the model. This model separates os frm 1s 88.1% percent of the times.</p>
+<H4>
+Random Forests
+</H4>
 <p>Fitting random forests on the basis of death</p>
-<pre class="r"><code>death_tree &lt;- rpart(death ~ age + emergent_admission +        
+<pre class="r"><code>#we convert the death variable to factors otherwise R will treat death as integers (using method = anova)   
+death_tree &lt;- rpart(as.factor(death) ~ age + emergent_admission +        
                      concomitant_tricuspid_valve_repair + coagulation + hypertension +
                      diabetes_mellitus + sepsis + coronary_artery_disease +
                      congestive_heart_failure + atrial_fibrillation + 
@@ -1199,8 +1300,9 @@ resi &lt;- cox.zph(cox_regression_model)</code></pre>
                      liver_disease + cancer + group+ year, data=final_data)
 
 # extra=1: Display the number of observations that fall in the node
-rpart.plot(death_tree, extra = 1,  under = TRUE, clip.right.labs = FALSE, varlen = 0)</code></pre>
-<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABUAAAAPACAMAAADDuCPrAAAAe1BMVEUAAAAAACsAAFUAK1UAK4AAVYAAVaorAAArAFUrKysrK4ArgNRVAABVKwBVVQBVVStVqqpVqtRVqv+AKwCAgCuAqoCA1KqA1NSA1P+qVQCqgCuqqlWq1ICq/6qq///UgCvUgFXUqlXU/6rU////qlX/1ID//6r//9T////pks+QAAAACXBIWXMAAB2HAAAdhwGP5fFlAAAgAElEQVR4nO3d6WLrVpYeUJXjXHfnOj3cylBKV5nplOzS+z9hRJAgZhDcHHCGtX7Yuhxx9tn4hInU2ycAIW97LwBArgQoQJAABQgSoABBAhQgSIACBAlQgCABChAkQAGCBChAkAAFCBKgAEECFCBIgAIECVCAIAEKECRAAYIEKECQAAUIEqAAQQIUIEiAAgQJUIAgAQoQJEABggQoQJAABQgSoABBAhQgSIACBAlQgCABChAkQAGCBChAkAAFCBKgAEECFCBIgAIECVCAIAEKECRAAYIEKECQAAUIEqAAQQIUIEiAAgQJUIAgAQoQJEABggQoQJAABQgSoABBAhQgSIACBAlQgCABChAkQAGCBChAkAAFCBKgAEECFCBIgAIECVCAIAEKECRAAYIEKECQAAUIEqAAQQIUIEiAAgQJUIAgAQoQJEABggQoQJAABQgSoABBAhQgSIACBAlQgCABChAkQAGCBChAkAAFCBKgAEECFCBIgAIECVCAIAEKECRAAYIEKECQAAUIEqAAQQIUIEiAAgQJUIAgAQoQJEABggQoQJAABQgSoABBAhQgSIACBAlQgCABChAkQAGCBChAkAAFCBKgAEECFCBIgAIECVCAIAEKECRAAYIEKECQAAUIEqAAQQIUIEiAAgQJUIAgAQoQJEABggQoQJAABQgSoABBAhQgSIACBAlQgCABChAkQAGCBChAkAAFCBKgAEECFCBIgAIECVCAIAEKECRAAYIEKECQAAUIEqAAQQIUIEiAAgQJUIAgAQoQJEABggQoQJAABQgSoABBAhQgSIACBAlQgCABChAkQAGCBChAkAAFCBKgAEECFCBIgAIECVCAIAEKECRAAYIEKECQAAUIEqAAQQIUIEiAAgQJUIAgAQoQJEABggQoQJAABQgSoABBAhQgSIACBAlQgCABChAkQAGCBChA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" title alt width="672" /></p>
+rpart.plot(death_tree, extra = 1,  under = TRUE, clip.right.labs = FALSE, varlen = 9)</code></pre>
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABUAAAAPACAMAAADDuCPrAAAAeFBMVEUAAAAAACsAAFUAK1UAK4AAVYAAVaorAAArAFUrKysrK4ArgNRVAABVKwBVVQBVVStVqqpVqtRVqv+AKwCAqoCA1KqA1NSA1P+qVQCqgCuqqlWq1ICq/6qq///UgCvUgFXUqlXU/6rU////qlX/1ID//6r//9T///9RE9nsAAAACXBIWXMAAB2HAAAdhwGP5fFlAAAgAElEQVR4nO3da4PiRpuYYex4Z3Yzk03STmKy+5rdmBn3//+HAQE6IAnEgw5V0nV9sPtAd4Oq6h6BBOw+AQjZLX0FAHIloABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoABBAgoQJKAAQQIKECSgAEECChAkoLzpx9fdyUf1hb9/P3/hy3LXCOYioLzl5/fdxa9/Xr9yuH6h3lRYJwHlHWU/d7vf/iq+UvZT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" title alt width="672" /></p>
+<p><B>This shows that the only important predictors are: age, congestive heart failure and the group. &lt;/B</p>
 
 
 

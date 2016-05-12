@@ -36,6 +36,37 @@ The aim of the study is to quantify the survival and morbidity after valve repla
 2. _Stroke and Bleeding_: Higher in those who received mechanical prosthetic mitral valves compared 
 3. _Reoperation_: Lower in the mechanical prosthesis group compared with the bioprosthesis group
 
+<H2>Data Introduction</H2>
+
+This data simulation study aims to explore the survival outcome in people who have undergone a Mitral Valve replacement. Specifically, people who had bioprosthetic valve replacement viz-a-viz a mechanical valve replacement. Presence of various comorbidities along with this replacement are also kept in the picture. These are: coagulation, hypertension, diabetes mellitus, sepsis, coronary artery disease, congestive heart failure, atrial fibrillation, peripheral vascular disease, cerebro vascular disease, chronic obstructive pulmonary disease, chronic kidney disease, liver disease and cancer.
+
+Initially, 2 datasets will be simulated:
+
+1.	People who underwent bioprosthetics valve replacement: dataset dimensions (795 rows, 20 columns)
+
+2.	People who underwent mechanical prosthetics valve replacement: dataset dimensions (2638 rows, 20 columns)
+
+Finally, these will be paired and the data set will be reduced to 664 rows in each of the above mentioned datasets. Wemwill then add a column for whether these people are dead or alive (the research paper only talks about mortality once the matched pairing has been taken care of).
+
+Important points about the predictor variables:
+
+*Age is normally distributed.
+
+*Sex, Race and Age were given as a proportion so it is a random distribution. 
+
+*All other variables are Bernoulli distributions based on their probability of occurrence.
+
+*Group is defined based on if they belong to the bio-prosthetics group or the mechanical prosthetics group. 
+
+*There is no missing data in this simulation.
+
+*The response variable is simulated later as a variable in the matched data frames as a Boolean variable with 0 for no death and 1 for death. It will be simulated based on the comorbidities recorded.
+
+Pairing of the preliminary data-sets will be done on the bai
+We will utilize the paired datasets and fit models to understand the effect of one variable on another. We will also merge the two data sets and try and understand how the analysis would differ if the datasets were not paired. Plots will also be generated to depict correlation and the various distributions.
+
+We will utilize the paired datasets and fit models to understand the effect of one variable on another. We will also merge the two data sets and try and understand how the analysis would differ if the datasets were not paired. Plots will also be generated to depict correlation and the various distributions.
+
 <H2>Data Simulation </H2>
 
 Install Libraries
@@ -398,6 +429,76 @@ new_mechprosthetics <- mechprosthetic_group[mech_indices, ]
 
 We have reduced the mechanicalprosthetics group arranged accoroding to matched pairs from the bioprosthetics group. There are 664 observation in the matched datasets.
 
+<B>Applying chi2 tests to the comorbidities in the two data-sets to test for matching sets</B>
+
+```{r}
+coagulation_chi <- chisq.test(table(new_bioprosthetics$coagulation,
+                                    new_mechprosthetics$coagulation), simulate.p.value = TRUE)
+print(coagulation_chi)
+# p-value of 0.3513 shows the we dont have enough evidence to reject the null hypothesis that the coagulation in new_bioprosthetics is independent of the coagulaton in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.
+
+hypertension_chi <- chisq.test(table(new_bioprosthetics$hypertension,
+                                     new_mechprosthetics$hypertension))
+print(hypertension_chi)
+# p-value of 0.6745 shows the we dont have enough evidence to reject the null hypothesis that the hypertencion in new_bioprosthetics is independent of the hypertension in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.
+
+diabetes_mellitus_chi <- chisq.test(table(new_bioprosthetics$diabetes_mellitus,
+                                          new_mechprosthetics$diabetes_mellitus))
+print(diabetes_mellitus_chi)
+# p-value of 0.3771 shows the we dont have enough evidence to reject the null hypothesis that the diabetes in new_bioprosthetics is independent of the diabetes in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.
+
+sepsis_chi <- chisq.test(table(new_bioprosthetics$sepsis, new_mechprosthetics$sepsis), 
+                                    simulate.p.value = TRUE)
+print(sepsis_chi)
+# p-value of 0.3818 shows the we dont have enough evidence to reject the null hypothesis that the sepsis in new_bioprosthetics is independent of the sepsis in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.
+
+coronory_artery_chi <- chisq.test(table(new_bioprosthetics$coronary_artery_disease, 
+                                        new_mechprosthetics$coronary_artery_disease), 
+                                    simulate.p.value = TRUE)
+
+print(coronory_artery_chi)
+# p-value of 0.9785 shows the we dont have enough evidence to reject the null hypothesis that the coronary artery disease in new_bioprosthetics is independent of the cronary artery disease in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.
+
+atrial_fibrillation_chi <- chisq.test(table(new_bioprosthetics$atrial_fibrillation,
+                                            new_mechprosthetics$atrial_fibrillation))
+print(atrial_fibrillation_chi)
+# p-value of 0.7551 shows the we dont have enough evidence to reject the null hypothesis that the coronary artery disease in new_bioprosthetics is independent of the cronary artery disease in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.
+
+peripheral_vascular_chi <- chisq.test(table(new_bioprosthetics$peripheral_vascular_disease,
+                                            new_mechprosthetics$peripheral_vascular_disease), 
+                                      simulate.p.value = TRUE)
+print(peripheral_vascular_chi)
+# p-value of 1 shows the we dont have enough evidence to reject the null hypothesis that the peripheral vascular disease in new_bioprosthetics is independent of the peripheral vascular in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.
+
+cerebro_vascular_chi <- chisq.test(table(new_bioprosthetics$cerebro_vascular_disease,
+                                         new_mechprosthetics$cerebro_vascular_disease))
+print(cerebro_vascular_chi)
+# p-value of 0.0289 shows the we have enough evidence to reject the null hypothesis that the cerebro vascular disease in new_bioprosthetics is independent of the cerebro vascular in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.This might be because we did not consider this feature for the purpose of matching
+
+chronic_obstructive_pulmonary_chi <-
+  chisq.test(table(new_bioprosthetics$chronic_obstructive_pulmonary_disease,
+                   new_mechprosthetics$chronic_obstructive_pulmonary_disease))
+print(chronic_obstructive_pulmonary_chi)
+# p-value of 0.7481 shows the we dont have enough evidence to reject the null hypothesis that the chronic obstructive pulmonary disease in new_bioprosthetics is independent of the chronic obstructive pulmonary in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.
+
+chronic_kidney_chi <- chisq.test(table(new_bioprosthetics$chronic_kidney_disease,
+                                       new_mechprosthetics$chronic_kidney_disease))
+print(chronic_kidney_chi)
+# p-value of 1 shows the we dont have enough evidence to reject the null hypothesis that the chronic kidney  disease in new_bioprosthetics is independent of the peripheral vascular in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.
+
+liver_disease_chi <- chisq.test(table(new_bioprosthetics$liver_disease, 
+                                      new_mechprosthetics$liver_disease),
+                                simulate.p.value = TRUE)
+print(liver_disease_chi)
+# p-value of 0.7411 shows the we dont have enough evidence to reject the null hypothesis that the liver disease in new_bioprosthetics is independent of the liver disease in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.
+
+cancer_chi <- chisq.test(table(new_bioprosthetics$cancer, new_mechprosthetics$cancer),
+                         simulate.p.value = TRUE)
+
+print(cancer_chi)
+# p-value of 0.6587 shows the we dont have enough evidence to reject the null hypothesis that the cancer in new_bioprosthetics is independent of the cancer in new_mechprosthetics. This is what we wanted to check as we have paired the data by matching, these should not be independent.
+```
+
 Adding a column for death based on comorbidities and the groups they belong to.
 
 ```{r}
@@ -517,10 +618,10 @@ ggplot(thecor, aes(Var2, Var1))+
  geom_tile(data=thecor, aes(fill=value), color="white")+
  scale_fill_gradient2(low="blue", high="red", mid="white", 
   midpoint=0, limit=c(-1,1),name="Correlation\n(Pearson)")+
- theme(axis.text.x = element_text(angle=45, vjust=1, size=11, hjust=1))+
+ theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
  coord_equal() + 
   labs(title="Correlations in bio prosthetics group", x = "", y = "")
-
+#We can see that there are no strong correlations in the data. However, death and age are highly negatively correlated.
 ```
 
 <B> Mechanical prosthetic </B>
@@ -576,7 +677,7 @@ thecor<-round(cor(death_mechprosthetics[,sort(c("age", "emergent_admission",
                   use="pairwise.complete.obs"), 
               2)
 thecor[lower.tri(thecor)]<-NA
-#thecor
+print(thecor)
 
 thecor<-melt(thecor)
 thecor$Var1<-as.character(thecor$Var1)
@@ -588,10 +689,11 @@ ggplot(thecor, aes(Var2, Var1))+
  geom_tile(data=thecor, aes(fill=value), color="white")+
  scale_fill_gradient2(low="blue", high="red", mid="white", 
   midpoint=0, limit=c(-1,1),name="Correlation\n(Pearson)")+
- theme(axis.text.x = element_text(angle=45, vjust=1, size=11, hjust=1))+
+ theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
  coord_equal() + 
   labs(title="Correlations in mechanical prosthetics group" , x = "", y = "")
 
+#We can see that there are no strong correlations in the data. However, death and age are highly negatively correlated.
 ```
 
 <H2>Data Analysis</H2>
@@ -693,9 +795,10 @@ death_tree <- rpart(as.factor(death) ~ age + emergent_admission +
                      chronic_obstructive_pulmonary_disease + chronic_kidney_disease +
                      liver_disease + cancer + group+ year, data=final_data)
 
-# extra=1: Display the number of observations that fall in the node
-rpart.plot(death_tree, extra = 1,  under = TRUE, clip.right.labs = FALSE, varlen = 9)
+# extra=2:  edisplays the number of correct classifications and the number of observations in the node.
+#Snip = TRUE will allow you to interactively extract the values at any node which you click on.
+rpart.plot(death_tree, extra = 2,  under = TRUE, clip.right.labs = FALSE, varlen = 0, type = 4, snip = TRUE)
  
 ```
 
-<B>This shows that the only important predictors are: age, congestive heart failure and the group. </B
+This shows that the only important predictors are: age, congestive heart failure and the group. This tree also shows the classification efficiency at every node. Eg. the classification efficiency at the node for age<60 is that it classified accurately 602 times out of the 609 times it encountered an observation. Thus, as can be seen above, random forests give the correct classification score of every node.

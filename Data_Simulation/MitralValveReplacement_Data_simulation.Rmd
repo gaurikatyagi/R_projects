@@ -62,7 +62,11 @@ Important points about the predictor variables:
 
 *The response variable is simulated later as a variable in the matched data frames as a Boolean variable with 0 for no death and 1 for death. It will be simulated based on the comorbidities recorded.
 
-Pairing of the preliminary data-sets will be done on the bai
+*The response variable death has the following positively correlated factors: cancer, congestive heart failure, age>60 and if the person was brought in in an emergency.
+
+*Confounders are not being added while data simulation but we will explore their presence when performing correlation analysis
+
+Pairing of the preliminary data-sets will be done on the baisis of demographics and comorbidities.
 We will utilize the paired datasets and fit models to understand the effect of one variable on another. We will also merge the two data sets and try and understand how the analysis would differ if the datasets were not paired. Plots will also be generated to depict correlation and the various distributions.
 
 We will utilize the paired datasets and fit models to understand the effect of one variable on another. We will also merge the two data sets and try and understand how the analysis would differ if the datasets were not paired. Plots will also be generated to depict correlation and the various distributions.
@@ -616,13 +620,19 @@ thecor<-na.omit(thecor)
 
 ggplot(thecor, aes(Var2, Var1))+
  geom_tile(data=thecor, aes(fill=value), color="white")+
- scale_fill_gradient2(low="blue", high="red", mid="white", 
+ scale_fill_gradient2(low="red", high="green", mid="white", 
   midpoint=0, limit=c(-1,1),name="Correlation\n(Pearson)")+
  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
  coord_equal() + 
   labs(title="Correlations in bio prosthetics group", x = "", y = "")
-#We can see that there are no strong correlations in the data. However, death and age are highly negatively correlated.
 ```
+
+Positive Correlations
+We can see that there are is a strong correlations in the data. Death and age are highly positively correlated. This is so because we coded it that way. Another important point to notice is that even though we did not generate a correlation of death with hypertention, our data suggests a positive correlation between the two. 
+
+Negative Correlation
+Peripheral Vascular disease and Atrial fibrillation depict strong negative correlation. From our dataset it is highly unlikely that both exist together. Similarly, concomitant tricuspid valve repair and atrial fibrilation are negatuvely correlated. 
+
 
 <B> Mechanical prosthetic </B>
 
@@ -687,14 +697,19 @@ thecor<-na.omit(thecor)
 
 ggplot(thecor, aes(Var2, Var1))+
  geom_tile(data=thecor, aes(fill=value), color="white")+
- scale_fill_gradient2(low="blue", high="red", mid="white", 
+ scale_fill_gradient2(low="red", high="green", mid="white", 
   midpoint=0, limit=c(-1,1),name="Correlation\n(Pearson)")+
  theme(axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
  coord_equal() + 
   labs(title="Correlations in mechanical prosthetics group" , x = "", y = "")
 
-#We can see that there are no strong correlations in the data. However, death and age are highly negatively correlated.
 ```
+
+Positive Correlations
+Apart from the correlations we generated while simlating the death variable, we see some more interesting positive correlations in the data. These correlations are not that stroong though. These are: Sepsis and chronic kidney disease, diabetes mellitus and coagulation. Age and death ofcourse show high positive correlatin as they are intentionally coded that way. Similary death and congestive heart failure show strong positive correlation.
+
+Negative Correlation
+NEgative correlations or confounders were not coded in the data. However, we can notice that there is negative correlation between emergent admission and cerebro-vascular disease. Chronic obstructive pulmonay disease and cerebro-vascular disease also show strong negative correlation.
 
 <H2>Data Analysis</H2>
 

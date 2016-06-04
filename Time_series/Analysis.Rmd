@@ -5,6 +5,8 @@ date: "June 4, 2016"
 output: html_document
 ---
 
+##Reading Data
+
 The scan() function assumes that the data for successive time
 points is in a simple text file with one column. The kings dataset contains data on the age of death of successive kings of England. It ha 42 observations.
 
@@ -17,16 +19,37 @@ births <- scan("http://robjhyndman.com/tsdldata/data/nybirths.dat")
 souvenir <- scan("http://robjhyndman.com/tsdldata/data/fancy.dat")
 ```
 
+##Converting data to time-series object
+
 Time series analysis requires that the dataset is convrted to a time-series object before the analysis. By default ts() assumes that the data has been collected on an yearly basis. If the data has been collected on a monthly basis, we can set the frequency=12, for quarterly we set the frequency=4.
 
 ```{r}
 death_timeseries <- ts(kings_death)
 death_timeseries
 
-birthstimeseries <- ts(births, frequency=12, start=c(1946,1))
-birthstimeseries
+births_timeseries <- ts(births, frequency=12, start=c(1946,1))
+births_timeseries
 
 #data is gathered monthly from January, 1987
-souvenirtimeseries <- ts(souvenir, frequency=12, start=c(1987,1))
-souvenirtimeseries
+souvenir_timeseries <- ts(souvenir, frequency=12, start=c(1987,1))
+souvenir_timeseries
+```
+
+##Plotting time-series data
+
+```{r}
+par(mfrow = c(1,3))
+plot.ts(death_timeseries)
+plot.ts(births_timeseries)
+plot.ts(souvenir_timeseries)
+```
+
+Time-series interpretation:
+1. Kings' death data shows random fluctuations in the data that are roughly constant in size over time. Hence, this must be an additive model
+2. Babies' birth times show seasonality, with peaks durng summers and troughs during winters
+3. Souvenir data shows that the size of the seasonal fluctuations increase with time. Clearly his data is not an example of an additive model and will need to be transformed to obtain an additive model.
+
+```{r}
+log_souvenir_ts <- log(souvenir_timeseries)
+plot.ts(log_souvenir_ts)
 ```

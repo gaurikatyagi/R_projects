@@ -5,6 +5,28 @@ date: "June 4, 2016"
 output: html_document
 ---
 
-```{r}
+The scan() function assumes that the data for successive time
+points is in a simple text file with one column. The kings dataset contains data on the age of death of successive kings of England. It ha 42 observations.
 
+```{r}
+kings_death <- scan("http://robjhyndman.com/tsdldata/misc/kings.dat",skip=3)
+head(kings_death)
+
+births <- scan("http://robjhyndman.com/tsdldata/data/nybirths.dat")
+
+souvenir <- scan("http://robjhyndman.com/tsdldata/data/fancy.dat")
+```
+
+Time series analysis requires that the dataset is convrted to a time-series object before the analysis. By default ts() assumes that the data has been collected on an yearly basis. If the data has been collected on a monthly basis, we can set the frequency=12, for quarterly we set the frequency=4.
+
+```{r}
+death_timeseries <- ts(kings_death)
+death_timeseries
+
+birthstimeseries <- ts(births, frequency=12, start=c(1946,1))
+birthstimeseries
+
+#data is gathered monthly from January, 1987
+souvenirtimeseries <- ts(souvenir, frequency=12, start=c(1987,1))
+souvenirtimeseries
 ```

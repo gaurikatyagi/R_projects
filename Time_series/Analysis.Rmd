@@ -217,3 +217,40 @@ Box.test and histogram suggest that the simple exponential smoothing method prov
 
 __Holt's Exponential Smoothing__
 
+A series with an increasing/decreasing trend and no seasonality, described using an additive model can use holt's exponential smoothing for short-term forecasts.
+
+```{r}
+skirt_diameters <- scan("http://robjhyndman.com/tsdldata/roberts/skirts.dat",skip=5)
+
+skirt_ts <- ts(skirt_diameters, start=c(1866))
+plot.ts(skirt_ts)
+```
+
+Skirt diameters increased till 1866 and then declined. We again use HoltWinters(), but only with gamma=FALSE
+
+```{r}
+skirt_forecast <- HoltWinters(skirt_ts, gamma = FALSE)
+skirt_forecast
+skirt_forecast$SSE
+```
+
+The estimated value of alpha is 0.84, and of beta is 1. These are both high, telling us that both the estimate
+of the current value of the level, and of the slope b of the trend component, are based mostly upon very recent
+observations in the time series. Makes sense because the slope changes considerably over time.
+
+```{r}
+plot(skirt_forecast)
+#original in blak, forecast in red
+```
+
+pridicting for 19 more datapoints
+
+```{r}
+skirt_future <- forecast.HoltWinters(skirt_forecast, h = 19)
+plot.forecast(skirt_future)
+```
+
+We check if predicted model could be improved in the same way.
+
+__Holt-Winters Exponential Smoothing__
+

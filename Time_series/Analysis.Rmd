@@ -115,3 +115,105 @@ births_ts_seasonally_adjusted <- births_timeseries - births_ts_components$season
 plot(births_ts_seasonally_adjusted)
 ```
 
+##Forecasts (short-term) using Exponential Smoothing
+
+__Simple Exponential Smoothing__
+
+A time series model with a constant level and no seasonality can use simple exponential smoothing to describe additivity. 
+
+<I>The simple exponential smoothing method provides a way of estimating the level at the current time point. Smoothing is controlled by the parameter alpha; for the estimate of the level at the current time point. The value of alpha; lies between 0 and 1. Values of alpha that are close to 0 mean that little weight is placed on the most recent observations when making forecasts of future values.</I>
+
+Let us take the example of rainfall in inches from 1813-1912.
+
+```{r}
+#removing header
+rain <- scan("http://robjhyndman.com/tsdldata/hurst/precip1.dat",skip=1)
+
+rain_timeseries <- ts(rain, start = c(1813))
+plot.ts(rain_timeseries)
+```
+
+HoltWinters() is used to achieve simple exponential smoothing by setting the parameters beta and gamma to FALSE. Byt default it takes the intial level as the first obbservation. We can set the level of the initial value by using the l.start parameter. Just like the decompose function, this also gives a list of variables.
+
+Note: HoltWinters() gives the forecasts for the same time period as the data fed to it.
+
+```{r}
+rain_ts_forecasts <- HoltWinters(rain_timeseries, beta = FALSE, gamma = FALSE)
+rain_ts_forecasts
+#The aplha here gives how closely the forecasts are based on recent and not so recent observations.
+```
+
+Let us see the value of forecasts viz-a-viz the original data
+
+```{r}
+rain
+rain_ts_forecasts$fitted
+```
+
+Plotting the forecasts: Original data is in black and forecasts are in red
+
+```{r}
+plot(rain_ts_forecasts)
+```
+
+Let us see the accuracy of these forecasts based on the sum of squared errors in the in-sample forecast errors, that is, the forecast errors for the time period covered by our original time series.
+
+Errors are found as observed value - predicted value. These are stored in the list as "residuals"
+
+```{r}
+rain_ts_forecasts$SSE
+
+#changing the initial level to start at a particular point
+HoltWinters(rain_timeseries, beta = FALSE, gamma = FALSE, l.start = 24)
+```
+
+To make predictions beyond the time period in the data, we can use forecasts.HoltWinters(). This is within the forecast package. "h" parameter defines how many years do we want to predict. This does not give a fixed value of a forecast but an interval within which the values may falls
+
+```{r}
+#install.packages("forecast")
+library(forecast)
+rain_future <- forecast.HoltWinters(rain_ts_forecasts, h = 5)
+```
+
+Plotting the 5 year forecasts (original data is present till 1912)
+
+```{r}
+plot.forecast(rain_future)
+```
+
+Here the forecasts for 1913-1917 are plotted as a blue line, the 80% prediction interval as an darker blue shaded area,
+and the 95% prediction interval as a lighter blue shaded area.
+
+Errors
+If there is a correlation between forecast error for successive predictions, the simple exponential forecasts can be improved upon by another forecasting technique. To find this, we obtain a correlogram of the in-sample forecast errors for lags 1-20. We can calculate a correlogram of the forecast errors using the “acf()” function in R. To specify the maximum lag that we want to look at, we use the “lag.max” parameter in acf().
+
+```{r}
+acf(rain_future$residuals, lag.max = 20)
+```
+
+You can see from the sample correlogram that the autocorrelation at lag 3 is just touching the significance bounds.
+To test whether there is significant evidence for non-zero correlations at lags 1-20, we can carry out a Ljung-
+Box test. This can be done in R using the “Box.test()”, function. The maximum lag that we want to look at is
+specified using the “lag” parameter in the Box.test() function
+
+```{r}
+Box.test(rain_future$residuals, lag=20, type="Ljung-Box")
+```
+
+p-value of 0.6 and test statistic of 17.4 suggest non-zero auto-correlation in the in-sample forecast errors at lags 1-20.
+
+We will also check if the forecast errors are normally districbuted with mean 0 and variance constant.
+
+```{r}
+plot.ts(rain_future$residuals)
+#The plot shows that the in-sample forecast errors seem to have roughly constant variance over time, although the size of the fluctuations in the start of the time series (1820-1830) may be slightly less than that at later dates (eg.1840-1850)
+
+#checking normality of errors
+hist(rain_future$residuals, col = "green")
+#Shows an almost normal distribution with mean 0
+```
+
+Box.test and histogram suggest that the simple exponential smoothing method provides an adequate predictive model.
+
+__Holt's Exponential Smoothing__
+

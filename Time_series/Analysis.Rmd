@@ -83,3 +83,35 @@ plot.ts(kings_ts_SMA7)
 
 The order 7 gives a clearer picture of the trend component, and we can see that the age of death of the kings decreased from over 50 years old to lesser than 40 years old during the reign of the first 20 kings, and then increased after that to about 73 years old by the end of the reign of the 40th king in the time series
 
+__Decomposing Seasonal Data__
+
+A seasonal time series consists of a trend component, a seasonal component and an irregular component. Decomposing such a data breaks it down into these three components.
+
+The trend component that can be described using an additive model can be found out using the decompose(). It returns a list object with named elements, “seasonal”, “trend”, and “random”
+
+The births dataset above showed seasonality of summer and winter. Let us see if it can be decomposed as an additive model of the three omponents as random fluctutations seemed constant over time.
+
+```{r}
+births_ts_components <- decompose(births_timeseries)
+births_ts_components
+
+#This shows the original values along with seasonal, random and trend components. It also shows that the seasonality appears to be additive.
+```
+
+Shows that the seasonal factor is the lowest for Feb and highest for July, indicating the highest births in July and lowest in February. 
+
+This also shows that the seasonal factors remain more or less the same for every year (for respective months from /Jan-Dec).
+
+```{r}
+plot(births_ts_components)
+```
+
+The trend component shows a steady increase in birth rates since 1949.
+
+Such an additiv seasonal model can be adjusted in time-series respect by estimating the seasonal component and subtracting it from the original data. This will give the main trend and the irregular component.
+
+```{r}
+births_ts_seasonally_adjusted <- births_timeseries - births_ts_components$seasonal
+plot(births_ts_seasonally_adjusted)
+```
+

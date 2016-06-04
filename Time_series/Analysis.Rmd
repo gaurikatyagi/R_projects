@@ -53,3 +53,33 @@ Time-series interpretation:
 log_souvenir_ts <- log(souvenir_timeseries)
 plot.ts(log_souvenir_ts)
 ```
+
+Now, the size of the seasonal fluctuations and random fluctuations in the log-transformed time series seem to be roughly constant over time, and do not depend on the level of the time series.
+
+##Decomposing Time-Series Data
+
+separating it into its constituent components
+
+__Decomposing Non-Seasonal Data__
+
+Decomposing Non-Seasonal time-series data comprizes of breaking down the non-seasonal data into a trend and an irregular component.
+
+To estimate the trend component of a non-seasonal time series that can be described using an additive model, it is
+common to use a smoothing method, such as calculating the simple moving average of the time series.
+
+The order/n of SMA is found out by exploratory analysis. The kings' death data appears non-seasonal and maybe additive. Let us start with analyzing that.
+
+```{r}
+#install.packages("TTR")
+library(TTR)
+
+kings_ts_SMA2 <- SMA(death_timeseries, n = 2)
+plot.ts(kings_ts_SMA2)
+#still there is a lot of random fluctuations in the time series smoothed using a simple moving average of order 2. Now, we try a higher order
+
+kings_ts_SMA7 <- SMA(death_timeseries, n = 7)
+plot.ts(kings_ts_SMA7)
+```
+
+The order 7 gives a clearer picture of the trend component, and we can see that the age of death of the kings decreased from over 50 years old to lesser than 40 years old during the reign of the first 20 kings, and then increased after that to about 73 years old by the end of the reign of the 40th king in the time series
+

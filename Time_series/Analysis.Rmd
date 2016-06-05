@@ -254,3 +254,54 @@ We check if predicted model could be improved in the same way.
 
 __Holt-Winters Exponential Smoothing__
 
+A time series that can be described using an additive model with increasing/decreasing trend along with <B>seasonality</B> can utilize Holt-Winters exponential smoothing to make short-term forecasts. 
+
+This method estimates the level, slope and seasonal component at the current point. In this method, we utilize all alpha, beta and gamma for estimates of the level, slope b of the trend component, and the seasonal component respectively. All these have values between 0 nd 1. Values close to 0 emphasize on little weight on the most recent observation for future predictions.
+
+This cn utilize the souvenir data:
+
+```{r}
+log_souvenir_ts_forecast <- HoltWinters(log_souvenir_ts)
+log_souvenir_ts_forecast
+```
+
+The value of alpha (0.41)
+is relatively low, indicating that the estimate of the level at the current time point is based upon both recent
+observations and some observations in the more distant past. The value of beta is 0.00, indicating that the estimate
+of the slope b of the trend component is not updated over the time series, and instead is set equal to its initial value.
+This makes good intuitive sense, as the level changes quite a bit over the time series, but the slope b of the trend
+component remains roughly the same. In contrast, the value of gamma (0.96) is high, indicating that the estimate
+of the seasonal component at the current time point is just based upon very recent observations.
+
+```{r}
+plot(log_souvenir_ts_forecast)
+```
+
+This shows that there are seasonal peaks almost towards the end of every year.
+
+Let us forecast the future now (10 more months)
+
+```{r}
+log_souvenir_ts_future <- forecast.HoltWinters(log_souvenir_ts_forecast, h = 10)
+plot.forecast(log_souvenir_ts_future)
+```
+
+We will now investigate if the predicted model can be improved upon by checking whether in-sample forecast errors sho non-zero autocorrelation at lags 1-20, bu making correlogram and carrying out Ljung-Box test.
+
+```{r}
+#acf computes estimates of autocovariance or autocorrelation
+acf(log_souvenir_ts_future$residuals, lag.max = 20)
+Box.test(log_souvenir_ts_future$residuals, lag = 20, type = "Ljung-Box")
+```
+
+The correlation diagram above suggests that the in-sample forecast erros do not exceed the significance bounds for lags 1-20. p-value of 0.6 indicates little evidence of non-zero autocorrelations at lags 1-20.
+
+Now, we check for constant variance, normal distribution, zero mean for forecast errors.
+
+```{r}
+plot.ts(log_souvenir_ts_future$residuals)
+hist(log_souvenir_ts_future$residuals, col = "green")
+```
+
+Thus, Holt-Winters exponential smoothing provides an adequate predictive model of the log of sales at the souvenir shop, which probably cannot be improved upon
+

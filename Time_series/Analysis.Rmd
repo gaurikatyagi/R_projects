@@ -399,9 +399,43 @@ The ARMA(2,0) model has 2 parameters, the ARMA(0,3) model has 3 parameters, and 
 
 ARMA model is ARMA(p=2, d= 0, q= 0)
 
+__Forecasting using ARIMA__
 
-
+We can also chose the ARIMA parameters automatically, by using the auto.arima(<data-timeseries>) function in the forecast package. Or by using arima()
 
 ```{r}
-ARMA
+kings_arima <- arima(ts(kings_death), order = c(0,1,1)) ## fit an ARIMA(0,1,1) model
+kings_arima
 ```
+
+Making forecasts for the next 5 kings.
+
+```{r}
+library("forecast")
+kings_arima_forecasts_95 <- forecast.Arima(kings_arima, h = 5, level = c(99.5)) #we get a 99.5% prediction interval
+kings_arima_forecasts_95
+
+kings_arima_forecasts <- forecast.Arima(kings_arima, h = 5)
+kings_arima_forecasts
+plot.forecast(kings_arima_forecasts)
+```
+
+We can also make a correlogram of our ARIMA (0, 1, 1) model by performing the Ljung-Box test for lags between 1-20
+
+```{r}
+acf(kings_arima_forecasts$residuals, lag.max = 20)
+Box.test(kings_arima_forecasts$residuals, lag = 20, type = "Ljung-Box")
+```
+
+None of the sample autocorrelations for lags 1-20 exceed the significance bounds, and the p-value for the Ljung-Box test is 0.85, we can conclude that there is very little evidence for non-zero autocorrelations in the forecast errors at lags 1-20.
+The normal distribution of the residuals is now checked:
+
+```{r}
+hist(kings_arima_forecasts$residuals, col = "green")
+```
+
+It is plausible that the forecast errors are normally distributed with mean zero and
+constant variance
+
+Since successive forecast errors do not seem to be correlated, and the forecast errors seem to be normally distributed with mean zero and constant variance, the ARIMA(0,1,1) does seem to provide an adequate predictive model for the ages at death of English kings.
+

@@ -305,3 +305,103 @@ hist(log_souvenir_ts_future$residuals, col = "green")
 
 Thus, Holt-Winters exponential smoothing provides an adequate predictive model of the log of sales at the souvenir shop, which probably cannot be improved upon
 
+##ARIMA Models
+
+Exponential smoothing methods are useful for making forecasts and make no assumptions about the correlations between successive values of time series. 
+
+However, if you want to make predictions for forecasts made using exponential smoothing methods, the predition intervals require that the forecast made using exponential smoothing methods.
+
+While exponential smoothing methods do not make any assumptions about correlations between successive values of the time series, in some cases you can make a better predictive model by taking correlations in the data into account. Autoregressive Integrated Moving Average (ARIMA) models include an explicit statistical model for the irregular component of a time series, that allows for non-zero autocorrelations in the irregular component.
+
+__Differencing a Time Series__
+
+Differencing is done to achieve stationary time series. This gives an ARIMA(p, d, q) model, where d is the order of differencing used.
+
+The skirt data is not stationary as the mean changes a lot over time. Differencing it:
+
+```{r}
+skirt_diff <- diff(skirt_ts, differences = 1)
+plot.ts(skirt_diff)
+
+#This still does not give a stationary mean. Let us difference it twice
+skirt_diff2 <- diff(skirt_ts, differences = 2)
+plot.ts(skirt_diff2)
+#appears stationary. Thus, order of differencing is 2.
+```
+
+Hence, we can make ARIMA(p,2,q) model for our time series. Now we need to find p and q
+
+__Selecting a candidate ARIMA Model__
+
+The p and q of the ARIMA model can be found out usingthe coellogram and partial corellogram (acf and pacf respectively). To get the actual values of the correlations we set plot=FALSE.
+
+```{r}
+acf(skirt_diff2, lag.max = 20)
+acf(skirt_diff2, lag.max = 20, plot = FALSE)
+```
+
+We can see that at lag 5 the significance bound is exceeded, but all other lags between 1-20 do not exceed these bounds.
+
+We now plot the partial correlogram for lags 1-20.
+
+```{r}
+pacf(skirt_diff2, lag.max = 20)
+pacf(skirt_diff2, lag.max = 20, plot = FALSE)
+```
+
+partial autocorrelations at lags 5 and 10 exceed the significance bounds (negatively).
+
+The correlograms, partial or actual fo not tail off to zero at any level. Hence, ARMA model is not possible for this series of difference 2.
+
+Let us say the correlogramg for acf would have tailed off to 0 after lag1 and that for pacf would have tailed off to 0 at lag3. Then, ARMA models would have been possible for the time series data of difference2. After this we would have estimated the p and q for the model. Hence, the following models would have been possible:
+
+1. ARMA(3,0) model, that is, an autoregressive model of order p=3, since the partial autocorrelogram is zero after lag3
+
+2. ARMA(0,1) model, that is, a moving average model of order q=1, since the autocorrelogram is zero after lag 1 and the partial autocorrelogram tails off to zero
+
+Principle of parsimony (model with the fewest parameters is the best) to decide the best model:
+The ARMA(3,0) model has 3 parameters, the ARMA(0,1) model has 1 parameter, and the ARMA(p,q) model has at least 2 parameters. Therefore, the ARMA(0,1) model is taken as the best model.
+
+This model is known as the ARMA model of order 1 or MA(1) model.
+
+Example 2:
+
+```{r}
+volcano_dust <- scan ("http://robjhyndman.com/tsdldata/annual/dvi.dat", skip=1)
+volcano_ts <- ts(volcano_dust, start = c(1500))
+plot.ts(volcano_ts)
+```
+
+This shows that the random fluctuations are roughly constant over time, so an additive model is appropriate for describing this time series. Its mean and variance also appear to be stationary. Hence, we do not need differences to find the ARIMA model. 
+
+Note: ARIMA(d, p, q) will have d=0
+
+Now plotting acf and paf for lags 1-20 (to estimate p, q of the ARIMa model)
+
+```{r}
+acf(volcano_ts, lag.max = 20)
+acf(volcano_ts, lag.max = 20, plot = FALSE)
+```
+
+Lags 1, 2 and 3 significantly exceed the significance bounds. The autocorrelations decresease in positive magnitude with increase in lag. 19 and 20 again exceed bounds, but this is probably due to chance (1 in 20 can exxceed bounds in 95% significance bounds).
+
+```{r}
+pacf(volcano_ts, lag.max = 20)
+pacf(volcano_ts, lag.max = 20, plot = FALSE)
+```
+
+The positive partial autocorellation at lag 1 significantly exceeds the bounds. While the partial autocorrelation at lag 2 negatively exceeds significance level.
+
+The correlogram tails off to zero after lag 3, and pacf after lag2. Hence, the following models are possible:
+ARMA(2,0) since PACF trails off to 0 after lag 2 and ARMA(0,3) because autocorellogram is zero after lag 3 and partial correlogram is zero. Although perhaps too abruptly for this model to be appropriate). The third one which is possible is an ARMA(p,q) mixed model, since the correlogram and partial correlogram tail off to zero (although the partial correlogram perhaps tails off too abruptly for this model to be appropriate).
+
+The ARMA(2,0) model has 2 parameters, the ARMA(0,3) model has 3 parameters, and the ARMA(p,q) model has at least 2 parameters. Therefore, using the principle of parsimony, the ARMA(2,0) model and ARMA(p,q) model are equally good candidate models.
+
+ARMA model is ARMA(p=2, d= 0, q= 0)
+
+
+
+
+```{r}
+ARMA
+```
